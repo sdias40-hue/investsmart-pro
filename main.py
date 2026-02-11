@@ -1,66 +1,68 @@
 import streamlit as st
-import pandas as pd
 import yfinance as yf
 import google.generativeai as genai
-import requests
-from bs4 import BeautifulSoup
-from datetime import datetime
+import pandas as pd
 
-# 1. CONFIGURAÇÃO SECRETA DA IA (Vamos configurar no Streamlit depois)
+# Configuração da Página
+st.set_page_config(page_title="InvestSmart Pro", layout="wide", page_icon="📈")
+
+# Puxar a chave dos Secrets do Streamlit
 try:
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+    genai.configure(api_key=GOOGLE_API_KEY)
 except:
-    st.error("Erro ao carregar a Chave da IA. Verifique as configurações de Secrets.")
+    st.error("Erro: Chave API não configurada nos Secrets do Streamlit.")
 
-# 2. SISTEMA DE ACESSOS POR TEMPO
-ACESSOS = {
-    'SANDRO2026': '2030-12-31',
-    'TESTE7DIAS': '2026-02-17'
-}
+# Interface de Login
+if 'autenticado' not in st.session_state:
+    st.session_state['autenticado'] = False
 
-def check_password():
-    if "authenticated" not in st.session_state:
-        st.session_state["authenticated"] = False
-    if st.session_state["authenticated"]:
-        return True
-    
-    st.title("🔒 InvestSmart Pro")
-    pwd = st.text_input("Chave de Acesso:", type="password")
+if not st.session_state['autenticado']:
+    st.title("🔐 InvestSmart Pro | Terminal de Elite")
+    chave = st.text_input("Chave de Acesso", type="password")
     if st.button("Entrar"):
-        pwd = pwd.upper().strip()
-        if pwd in ACESSOS:
-            if datetime.now() <= datetime.strptime(ACESSOS[pwd], '%Y-%m-%d'):
-                st.session_state["authenticated"] = True
-                st.rerun()
-            else: st.error("Chave expirada!")
-        else: st.error("Chave inválida!")
-    return False
+        if chave == "sandro2026":
+            st.session_state['autenticado'] = True
+            st.rerun()
+        else:
+            st.error("Chave inválida!")
+    st.stop()
 
-# 3. FUNÇÃO PARA LER SITES (O que você pediu!)
-def analisar_site_investidor(ticker):
+# --- ÁREA DO TERMINAL APÓS LOGIN ---
+st.title("📈 InvestSmart Pro | Terminal de Elite")
+
+ticker = st.text_input("Digite o código da ação (ex: PETR4.SA):", "PETR4.SA").upper()
+if not ticker.endswith(".SA") and len(ticker) <= 5:
+    ticker += ".SA"
+
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    st.subheader("🤖 Mentor IA")
+    if st.button("Pedir Análise ao Mentor IA"):
+        try:
+            # USANDO O MODELO MAIS ATUAL E RÁPIDO
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            prompt = f"Faça uma análise rápida e profissional da ação {ticker} para um investidor. Fale sobre o setor e o que esperar."
+            response = model.generate_content(prompt)
+            st.write(response.text)
+        except Exception as e:
+            st.warning("O Mentor IA está descansando agora. Tente novamente em 1 minuto.")
+            st.info("Dica: Verifique se sua chave API está correta nos Secrets.")
+
+with col2:
+    st.subheader("📊 Monitor de Dividendos")
     try:
-        # Exemplo simples de como a IA pode analisar um contexto colado ou buscado
-        prompt = f"Analise o ativo {ticker}. Ele é um bom pagador de dividendos para quem busca renda mensal? Responda como um Mentor Financeiro."
-        response = model.generate_content(prompt)
-        return response.text
+        acao = yf.Ticker(ticker)
+        divs = acao.dividends
+        if not divs.empty:
+            st.line_chart(divs.tail(10))
+            st.write("Últimos dividendos pagos:")
+            st.dataframe(divs.tail(5))
+        else:
+            st.write("Nenhum dividendo recente encontrado.")
     except:
-        return "O Mentor IA está descansando agora. Tente novamente em breve."
+        st.error("Erro ao carregar dados da Bolsa.")
 
-# --- APP PRINCIPAL ---
-if check_password():
-    st.set_page_config(page_title="InvestSmart Pro", layout="wide")
-    st.title("🚀 InvestSmart Pro | Terminal de Elite")
-
-    # Radar de Ativos
-    ticker_alvo = st.text_input("Digite um Ticker para análise profunda (ex: PETR4, JEPP34):", value="PETR4")
-    
-    if st.button("💡 Pedir Análise ao Mentor IA"):
-        with st.spinner('O Mentor está lendo o mercado...'):
-            analise = analisar_site_investidor(ticker_alvo)
-            st.markdown(f"### 🤖 Insights do Mentor para {ticker_alvo}")
-            st.info(analise)
-
-    st.divider()
-    st.subheader("📊 Monitor de Dividendos em Tempo Real")
-    # (Aqui continua o seu código de cálculos que já funciona perfeitamente)
+st.markdown("---")
+st.caption("InvestSmart Pro - Desenvolvido por Sandro | 2026")
