@@ -5,10 +5,11 @@ import google.generativeai as genai
 # 1. Configuracao da Pagina
 st.set_page_config(page_title="InvestSmart Pro", layout="wide", page_icon="📈")
 
-# 2. Conexao com a IA (Chamada simplificada para evitar o erro 404)
+# 2. Conexao com a IA
 try:
     CHAVE = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=CHAVE)
+    # Forcando o uso da versao v1 da API para evitar o erro 404 v1beta
+    genai.configure(api_key=CHAVE, transport='rest')
 except:
     st.error("Erro nos Secrets: Verifique a chave GOOGLE_API_KEY.")
 
@@ -38,12 +39,11 @@ with col1:
     if st.button("Analisar com IA"):
         with st.spinner("Analisando mercado..."):
             try:
-                # O ajuste mestre: usando o modelo sem especificar versoes instaveis
+                # O ajuste mestre: transport='rest' ajuda a evitar o conflito de versao
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 response = model.generate_content(f"Faca uma analise da acao {ticker}. Seja breve.")
                 st.write(response.text)
             except Exception as e:
-                # Mostra o erro tecnico detalhado para nos guiar
                 st.error(f"Erro na IA: {str(e)}")
 
 with col2:
