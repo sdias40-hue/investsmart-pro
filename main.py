@@ -5,10 +5,10 @@ import google.generativeai as genai
 # 1. Configuracao da Pagina
 st.set_page_config(page_title="InvestSmart Pro", layout="wide", page_icon="📈")
 
-# 2. Conexao com a IA
+# 2. Conexao mestre com a IA
 try:
     CHAVE = st.secrets["GOOGLE_API_KEY"]
-    # Forcando o uso da versao v1 da API para evitar o erro 404 v1beta
+    # O ajuste de ouro: transport='rest' evita o erro 404 da porta beta
     genai.configure(api_key=CHAVE, transport='rest')
 except:
     st.error("Erro nos Secrets: Verifique a chave GOOGLE_API_KEY.")
@@ -37,19 +37,21 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader("🤖 Mentor IA")
     if st.button("Analisar com IA"):
-        with st.spinner("Analisando mercado..."):
+        with st.spinner("O Mentor está analisando..."):
             try:
-                # O ajuste mestre: transport='rest' ajuda a evitar o conflito de versao
+                # Modelo estavel v1
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                response = model.generate_content(f"Faca uma analise da acao {ticker}. Seja breve.")
+                response = model.generate_content(f"Analise a acao {ticker}. Seja breve.")
                 st.write(response.text)
             except Exception as e:
+                # Mostra o erro detalhado se algo ainda travar
                 st.error(f"Erro na IA: {str(e)}")
 
 with col2:
     st.subheader("📊 Dividendos")
     try:
         dados = yf.Ticker(ticker)
+        # Grafico profissional que voce ja validou
         st.line_chart(dados.dividends.tail(15))
     except:
         st.write("Dados da bolsa indisponíveis no momento.")
