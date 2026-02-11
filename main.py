@@ -1,18 +1,22 @@
 import streamlit as st
 import yfinance as yf
 import google.generativeai as genai
+import os
 
-# 1. Configuracao
+# 1. Configuracao da Pagina
 st.set_page_config(page_title="InvestSmart Pro", layout="wide")
 
-# 2. Conexao IA
+# 2. Comando para forcar a versao oficial da API
+os.environ["GOOGLE_GENAI_USE_V1"] = "true"
+
+# 3. Conexao com a IA
 try:
     CHAVE = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=CHAVE)
 except:
-    st.error("Erro na Chave API")
+    st.error("Erro na Chave API nos Secrets")
 
-# 3. Login
+# 4. Login
 if 'auth' not in st.session_state: st.session_state['auth'] = False
 if not st.session_state['auth']:
     st.title("🔐 Login InvestSmart Pro")
@@ -23,9 +27,9 @@ if not st.session_state['auth']:
             st.rerun()
     st.stop()
 
-# --- PAINEL ---
+# --- PAINEL PRINCIPAL ---
 st.title("📈 InvestSmart Pro | Terminal de Elite")
-ticker_input = st.text_input("Ação:", "PETR4").upper()
+ticker_input = st.text_input("Ação (ex: VALE3):", "PETR4").upper()
 ticker = f"{ticker_input}.SA" if ".SA" not in ticker_input else ticker_input
 
 col1, col2 = st.columns(2)
@@ -35,10 +39,10 @@ with col1:
     if st.button("Analisar com IA"):
         with st.spinner("Analisando..."):
             try:
-                # O Pulo do Gato: Chamada limpa sem versoes beta
-                mentor = genai.GenerativeModel('gemini-1.5-flash')
-                resultado = mentor.generate_content(f"Analise a acao {ticker}")
-                st.write(resultado.text)
+                # Chamada limpa do modelo
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(f"Analise a acao {ticker}")
+                st.write(response.text)
             except Exception as e:
                 st.error(f"Erro na IA: {str(e)}")
 
@@ -48,4 +52,4 @@ with col2:
         dados = yf.Ticker(ticker)
         st.line_chart(dados.dividends.tail(15))
     except:
-        st.write("Erro nos dados da bolsa.")
+        st.write("Dados da bolsa indisponíveis agora.")
