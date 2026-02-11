@@ -6,14 +6,14 @@ import pandas as pd
 # 1. Configuracao da Pagina
 st.set_page_config(page_title="InvestSmart Pro", layout="wide", page_icon="📈")
 
-# 2. Conexao com a IA (Usando a nova biblioteca e secrets)
+# 2. Conexao com a IA
 try:
     CHAVE_API = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=CHAVE_API)
 except Exception as e:
-    st.error("Erro nos Secrets: Verifique se a chave GOOGLE_API_KEY foi adicionada.")
+    st.error("Erro nos Secrets: Verifique a chave GOOGLE_API_KEY.")
 
-# 3. Sistema de Login
+# 3. Login
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
@@ -39,16 +39,16 @@ col1, col2 = st.columns([1, 1])
 with col1:
     st.subheader("🤖 Mentor IA")
     if st.button("Pedir Análise ao Mentor IA"):
-        with st.spinner('O Mentor está analisando o mercado...'):
+        with st.spinner('Analisando...'):
             try:
-                # Modelo estavel e alinhamento perfeito
+                # Alinhamento perfeito e modelo estavel
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                prompt = f"Faca uma analise resumida da acao {ticker}. Dê uma dica para o investidor."
+                prompt = f"Faca uma analise da acao {ticker}. Seja breve e profissional."
                 response = model.generate_content(prompt)
                 st.success("Análise do Mentor:")
                 st.write(response.text)
             except Exception as e:
-                st.warning("O Mentor IA está descansando. Verifique se sua cota gratuita no Google AI Studio expirou.")
+                st.warning("O Mentor IA está descansando. Tente novamente em 1 minuto.")
 
 with col2:
     st.subheader("📊 Monitor de Dividendos")
@@ -57,11 +57,10 @@ with col2:
         divs = dados.dividends
         if not divs.empty:
             st.line_chart(divs.tail(15))
-            st.write("Últimos pagamentos:")
             st.dataframe(divs.tail(5), use_container_width=True)
         else:
-            st.info("Nenhum dividendo encontrado para este código.")
-    except Exception as e:
+            st.info("Nenhum dividendo encontrado.")
+    except:
         st.error("Erro ao carregar dados da Bolsa.")
 
 st.markdown("---")
