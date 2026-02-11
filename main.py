@@ -6,12 +6,12 @@ import pandas as pd
 # 1. Configuracao da Pagina
 st.set_page_config(page_title="InvestSmart Pro", layout="wide", page_icon="📈")
 
-# 2. Conexao com a IA (Padrao 2026)
+# 2. Conexao com a IA
 try:
     CHAVE_API = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=CHAVE_API)
 except Exception as e:
-    st.error("Erro: Verifique a chave GOOGLE_API_KEY nos Secrets.")
+    st.error("Erro nos Secrets: Verifique a chave GOOGLE_API_KEY.")
 
 # 3. Sistema de Login
 if 'autenticado' not in st.session_state:
@@ -41,13 +41,15 @@ with col1:
     if st.button("Pedir Análise ao Mentor IA"):
         with st.spinner('O Mentor está analisando...'):
             try:
-                # Modelo atualizado e alinhamento milimetrico
+                # Modelo estavel e alinhamento perfeito
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                response = model.generate_content(f"Analise a acao {ticker}. Seja direto e profissional.")
-                st.success("Análise Concluída:")
+                prompt = f"Faca uma analise da acao {ticker}. Seja breve e profissional."
+                response = model.generate_content(prompt)
+                st.success("Análise do Mentor:")
                 st.write(response.text)
             except Exception as e:
-                st.warning("IA em manutenção. Tente novamente em alguns instantes.")
+                # Se der erro, ele vai mostrar o motivo real na tela
+                st.error(f"O Mentor IA deu erro: {str(e)}")
 
 with col2:
     st.subheader("📊 Monitor de Dividendos")
@@ -58,9 +60,9 @@ with col2:
             st.line_chart(divs.tail(15))
             st.dataframe(divs.tail(5), use_container_width=True)
         else:
-            st.info("Nenhum dividendo recente encontrado.")
+            st.info("Nenhum dividendo encontrado.")
     except:
-        st.error("Erro ao buscar dados na Bolsa.")
+        st.error("Erro ao carregar dados da Bolsa.")
 
 st.markdown("---")
 st.caption("InvestSmart Pro v2.0 | Sandro 2026")
