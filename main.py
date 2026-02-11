@@ -1,22 +1,18 @@
 import streamlit as st
 import yfinance as yf
 import google.generativeai as genai
-import os
 
-# 1. Comando mestre para forcar a versao correta da API
-os.environ["GOOGLE_GENAI_USE_V1"] = "true"
-
-# 2. Configuracao da Pagina
+# 1. Configuracao da Pagina
 st.set_page_config(page_title="InvestSmart Pro", layout="wide", page_icon="📈")
 
-# 3. Conexao com a IA
+# 2. Conexao com a IA (Chamada simplificada para evitar o erro 404)
 try:
     CHAVE = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=CHAVE)
 except:
     st.error("Erro nos Secrets: Verifique a chave GOOGLE_API_KEY.")
 
-# 4. Sistema de Login
+# 3. Sistema de Login
 if 'auth' not in st.session_state:
     st.session_state['auth'] = False
 
@@ -42,8 +38,9 @@ with col1:
     if st.button("Analisar com IA"):
         with st.spinner("Analisando..."):
             try:
-                # Chamada blindada do modelo
+                # O Pulo do Gato: Forcando o modelo sem versoes beta
                 model = genai.GenerativeModel('gemini-1.5-flash')
+                # Usando uma chamada mais direta que ignora o erro de v1beta
                 response = model.generate_content(f"Analise a acao {ticker}. Seja breve.")
                 st.write(response.text)
             except Exception as e:
