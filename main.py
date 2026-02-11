@@ -6,7 +6,7 @@ import pandas as pd
 # 1. Configuracao da Pagina
 st.set_page_config(page_title="InvestSmart Pro", layout="wide", page_icon="📈")
 
-# 2. Conexao com a IA
+# 2. Conexao com a IA (Usando a versao estavel v1)
 try:
     CHAVE_API = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=CHAVE_API)
@@ -41,9 +41,9 @@ with col1:
     if st.button("Pedir Análise ao Mentor IA"):
         with st.spinner('O Mentor está analisando...'):
             try:
-                # Mudança crucial: usando o modelo estável v1 conforme pedido nos logs
+                # Mudança crucial: chamando o modelo da forma mais simples e estavel
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                response = model.generate_content(f"Faca uma analise da acao {ticker}. Seja breve.")
+                response = model.generate_content(f"Faca uma analise da acao {ticker}. Seja breve e profissional.")
                 st.success("Análise do Mentor:")
                 st.write(response.text)
             except Exception as e:
@@ -54,14 +54,13 @@ with col2:
     st.subheader("📊 Monitor de Dividendos")
     try:
         dados = yf.Ticker(ticker)
-        # Busca dividendos e garante que o grafico funcione como na sua imagem
         divs = dados.dividends
         if not divs.empty:
             st.line_chart(divs.tail(15))
             st.dataframe(divs.tail(5), use_container_width=True)
         else:
             st.info("Nenhum dividendo recente encontrado.")
-    except:
+    except Exception as e:
         st.error("Erro ao carregar dados da Bolsa.")
 
 st.markdown("---")
