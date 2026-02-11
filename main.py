@@ -32,6 +32,6 @@ ticker_simples = st.text_input("Ação (ex: VALE3):", "PETR4").upper()
 ticker = f"{ticker_simples}.SA" if not ticker_simples.endswith(".SA") else ticker_simples
 
 if st.button("Pedir Análise ao Mentor IA"):
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+   model = genai.GenerativeModel('gemini-1.5-flash')
     response = model.generate_content(f"Analise a acao {ticker}")
     st.write(response.text)
