@@ -6,7 +6,7 @@ import pandas as pd
 # 1. Configuracao da Pagina
 st.set_page_config(page_title="InvestSmart Pro", layout="wide", page_icon="📈")
 
-# 2. Conexao com a IA (Usando segredos do Streamlit)
+# 2. Conexao com a IA (Usando a nova biblioteca e secrets)
 try:
     CHAVE_API = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=CHAVE_API)
@@ -28,38 +28,40 @@ if not st.session_state['autenticado']:
             st.error("Chave incorreta!")
     st.stop()
 
-# --- PAINEL PRINCIPAL (APÓS LOGIN) ---
+# --- PAINEL PRINCIPAL ---
 st.title("📈 InvestSmart Pro | Terminal de Elite")
 
-ticker_simples = st.text_input("Código da Ação (ex: VALE3):", "PETR4").upper()
-ticker = f"{ticker_simples}.SA" if not ticker_simples.endswith(".SA") else ticker_simples
+ticker_input = st.text_input("Código da Ação (ex: VALE3):", "PETR4").upper()
+ticker = f"{ticker_input}.SA" if not ticker_input.endswith(".SA") else ticker_input
 
 col1, col2 = st.columns([1, 1])
 
 with col1:
     st.subheader("🤖 Mentor IA")
     if st.button("Pedir Análise ao Mentor IA"):
-        with st.spinner('O Mentor está analisando...'):
+        with st.spinner('O Mentor está analisando o mercado...'):
             try:
-                # Modelo estavel e alinhamento corrigido
+                # Modelo estavel e alinhamento perfeito
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                response = model.generate_content(f"Faca uma analise profissional da acao {ticker}. Fale sobre o setor.")
+                prompt = f"Faca uma analise resumida da acao {ticker}. Dê uma dica para o investidor."
+                response = model.generate_content(prompt)
                 st.success("Análise do Mentor:")
                 st.write(response.text)
             except Exception as e:
-                st.warning("O Mentor IA está descansando. Tente novamente em breve.")
+                st.warning("O Mentor IA está descansando. Verifique se sua cota gratuita no Google AI Studio expirou.")
 
 with col2:
     st.subheader("📊 Monitor de Dividendos")
     try:
-        acao_data = yf.Ticker(ticker)
-        dividendos = acao_data.dividendos if hasattr(acao_data, 'dividendos') else acao_data.dividends
-        if not dividendos.empty:
-            st.line_chart(dividendos.tail(15))
-            st.dataframe(dividendos.tail(5), use_container_width=True)
+        dados = yf.Ticker(ticker)
+        divs = dados.dividends
+        if not divs.empty:
+            st.line_chart(divs.tail(15))
+            st.write("Últimos pagamentos:")
+            st.dataframe(divs.tail(5), use_container_width=True)
         else:
-            st.write("Nenhum dividendo encontrado.")
-    except:
+            st.info("Nenhum dividendo encontrado para este código.")
+    except Exception as e:
         st.error("Erro ao carregar dados da Bolsa.")
 
 st.markdown("---")
