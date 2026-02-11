@@ -36,14 +36,14 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader("🤖 Mentor IA")
     if st.button("Analisar com IA"):
-        with st.spinner("Analisando..."):
+        with st.spinner("Analisando mercado..."):
             try:
-                # O Pulo do Gato: Forcando o modelo sem versoes beta
+                # O ajuste mestre: usando o modelo sem especificar versoes instaveis
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                # Usando uma chamada mais direta que ignora o erro de v1beta
-                response = model.generate_content(f"Analise a acao {ticker}. Seja breve.")
+                response = model.generate_content(f"Faca uma analise da acao {ticker}. Seja breve.")
                 st.write(response.text)
             except Exception as e:
+                # Mostra o erro tecnico detalhado para nos guiar
                 st.error(f"Erro na IA: {str(e)}")
 
 with col2:
@@ -52,4 +52,4 @@ with col2:
         dados = yf.Ticker(ticker)
         st.line_chart(dados.dividends.tail(15))
     except:
-        st.write("Dados da bolsa indisponíveis.")
+        st.write("Dados da bolsa indisponíveis no momento.")
