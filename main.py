@@ -41,13 +41,13 @@ with col1:
     if st.button("Pedir Análise ao Mentor IA"):
         with st.spinner('O Mentor está analisando...'):
             try:
-                # AJUSTE DE OURO: Usando o modelo direto para evitar o erro 404
-                model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+                # Ajuste para evitar o erro 404: usando o modelo direto
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 response = model.generate_content(f"Faca uma analise da acao {ticker}. Seja breve.")
                 st.success("Análise do Mentor:")
                 st.write(response.text)
             except Exception as e:
-                # Se ainda der erro, o robô vai nos dar a pista final
+                # Se ainda der erro, o robô vai nos mostrar a pista final
                 st.error(f"Erro técnico da IA: {str(e)}")
 
 with col2:
@@ -59,7 +59,7 @@ with col2:
             st.line_chart(divs.tail(15))
             st.dataframe(divs.tail(5), use_container_width=True)
         else:
-            st.info("Nenhum dividendo encontrado.")
+            st.info("Nenhum dividendo recente encontrado.")
     except:
         st.error("Erro ao carregar dados da Bolsa.")
 
