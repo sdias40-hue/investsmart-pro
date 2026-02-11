@@ -6,14 +6,14 @@ import pandas as pd
 # 1. Configuracao da Pagina
 st.set_page_config(page_title="InvestSmart Pro", layout="wide", page_icon="📈")
 
-# 2. Conexao com a IA
+# 2. Conexao com a IA (Padrao 2026)
 try:
     CHAVE_API = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=CHAVE_API)
 except Exception as e:
-    st.error("Erro nos Secrets: Verifique a chave GOOGLE_API_KEY.")
+    st.error("Erro: Verifique a chave GOOGLE_API_KEY nos Secrets.")
 
-# 3. Login
+# 3. Sistema de Login
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
@@ -39,16 +39,15 @@ col1, col2 = st.columns([1, 1])
 with col1:
     st.subheader("🤖 Mentor IA")
     if st.button("Pedir Análise ao Mentor IA"):
-        with st.spinner('Analisando...'):
+        with st.spinner('O Mentor está analisando...'):
             try:
-                # Alinhamento perfeito e modelo estavel
+                # Modelo atualizado e alinhamento milimetrico
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                prompt = f"Faca uma analise da acao {ticker}. Seja breve e profissional."
-                response = model.generate_content(prompt)
-                st.success("Análise do Mentor:")
+                response = model.generate_content(f"Analise a acao {ticker}. Seja direto e profissional.")
+                st.success("Análise Concluída:")
                 st.write(response.text)
             except Exception as e:
-                st.warning("O Mentor IA está descansando. Tente novamente em 1 minuto.")
+                st.warning("IA em manutenção. Tente novamente em alguns instantes.")
 
 with col2:
     st.subheader("📊 Monitor de Dividendos")
@@ -59,9 +58,9 @@ with col2:
             st.line_chart(divs.tail(15))
             st.dataframe(divs.tail(5), use_container_width=True)
         else:
-            st.info("Nenhum dividendo encontrado.")
+            st.info("Nenhum dividendo recente encontrado.")
     except:
-        st.error("Erro ao carregar dados da Bolsa.")
+        st.error("Erro ao buscar dados na Bolsa.")
 
 st.markdown("---")
 st.caption("InvestSmart Pro v2.0 | Sandro 2026")
