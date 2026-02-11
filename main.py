@@ -1,67 +1,51 @@
 import streamlit as st
 import yfinance as yf
 import google.generativeai as genai
-import pandas as pd
 
-# 1. Configuracao da Pagina
-st.set_page_config(page_title="InvestSmart Pro", layout="wide", page_icon="📈")
+# 1. Configuracao
+st.set_page_config(page_title="InvestSmart Pro", layout="wide")
 
-# 2. Conexao com a IA (Forcando a versao oficial v1)
+# 2. Conexao IA
 try:
-    CHAVE_API = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=CHAVE_API)
-except Exception as e:
-    st.error("Erro nos Secrets: Verifique a chave GOOGLE_API_KEY.")
+    CHAVE = st.secrets["GOOGLE_API_KEY"]
+    genai.configure(api_key=CHAVE)
+except:
+    st.error("Erro na Chave API")
 
-# 3. Sistema de Login
-if 'autenticado' not in st.session_state:
-    st.session_state['autenticado'] = False
-
-if not st.session_state['autenticado']:
-    st.title("🔐 InvestSmart Pro | Terminal de Elite")
-    chave = st.text_input("Sua Chave de Acesso", type="password")
+# 3. Login
+if 'auth' not in st.session_state: st.session_state['auth'] = False
+if not st.session_state['auth']:
+    st.title("🔐 Login InvestSmart Pro")
+    senha = st.text_input("Chave", type="password")
     if st.button("Entrar"):
-        if chave == "sandro2026":
-            st.session_state['autenticado'] = True
+        if senha == "sandro2026":
+            st.session_state['auth'] = True
             st.rerun()
-        else:
-            st.error("Chave incorreta!")
     st.stop()
 
-# --- PAINEL PRINCIPAL ---
+# --- PAINEL ---
 st.title("📈 InvestSmart Pro | Terminal de Elite")
+ticker_input = st.text_input("Ação:", "PETR4").upper()
+ticker = f"{ticker_input}.SA" if ".SA" not in ticker_input else ticker_input
 
-ticker_input = st.text_input("Código da Ação (ex: VALE3):", "PETR4").upper()
-ticker = f"{ticker_input}.SA" if not ticker_input.endswith(".SA") else ticker_input
-
-col1, col2 = st.columns([1, 1])
+col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("🤖 Mentor IA")
-    if st.button("Pedir Análise ao Mentor IA"):
-        with st.spinner('O Mentor está analisando...'):
+    if st.button("Analisar com IA"):
+        with st.spinner("Analisando..."):
             try:
-                # Mudanca crucial: usando o modelo direto na versao estavel
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                response = model.generate_content(f"Faca uma analise da acao {ticker}. Seja breve e profissional.")
-                st.success("Análise do Mentor:")
-                st.write(response.text)
+                # O Pulo do Gato: Chamada limpa sem versoes beta
+                mentor = genai.GenerativeModel('gemini-1.5-flash')
+                resultado = mentor.generate_content(f"Analise a acao {ticker}")
+                st.write(resultado.text)
             except Exception as e:
-                # Se ainda der erro, o robo vai nos mostrar a pista final
-                st.error(f"Erro técnico da IA: {str(e)}")
+                st.error(f"Erro na IA: {str(e)}")
 
 with col2:
-    st.subheader("📊 Monitor de Dividendos")
+    st.subheader("📊 Dividendos")
     try:
         dados = yf.Ticker(ticker)
-        divs = dados.dividends
-        if not divs.empty:
-            st.line_chart(divs.tail(15))
-            st.dataframe(divs.tail(5), use_container_width=True)
-        else:
-            st.info("Nenhum dividendo recente encontrado.")
-    except Exception as e:
-        st.error("Erro ao carregar dados da Bolsa.")
-
-st.markdown("---")
-st.caption("InvestSmart Pro v2.0 | Sandro 2026")
+        st.line_chart(dados.dividends.tail(15))
+    except:
+        st.write("Erro nos dados da bolsa.")
