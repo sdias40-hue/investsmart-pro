@@ -6,7 +6,7 @@ import pandas as pd
 # 1. Configuracao da Pagina
 st.set_page_config(page_title="InvestSmart Pro", layout="wide", page_icon="📈")
 
-# 2. Conexao com a IA (Usando a versao estavel v1)
+# 2. Conexao com a IA (Forcando a versao oficial v1)
 try:
     CHAVE_API = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=CHAVE_API)
@@ -41,13 +41,13 @@ with col1:
     if st.button("Pedir Análise ao Mentor IA"):
         with st.spinner('O Mentor está analisando...'):
             try:
-                # Mudança crucial: chamando o modelo da forma mais simples e estavel
+                # Mudanca crucial: usando o modelo direto na versao estavel
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 response = model.generate_content(f"Faca uma analise da acao {ticker}. Seja breve e profissional.")
                 st.success("Análise do Mentor:")
                 st.write(response.text)
             except Exception as e:
-                # Mostra o erro exato se a ponte cair
+                # Se ainda der erro, o robo vai nos mostrar a pista final
                 st.error(f"Erro técnico da IA: {str(e)}")
 
 with col2:
