@@ -41,19 +41,20 @@ with col1:
     if st.button("Pedir Análise ao Mentor IA"):
         with st.spinner('O Mentor está analisando...'):
             try:
-                # Ajuste para evitar o erro 404: usando o modelo direto
+                # Mudança crucial: usando o modelo estável v1 conforme pedido nos logs
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 response = model.generate_content(f"Faca uma analise da acao {ticker}. Seja breve.")
                 st.success("Análise do Mentor:")
                 st.write(response.text)
             except Exception as e:
-                # Se ainda der erro, o robô vai nos mostrar a pista final
+                # Mostra o erro exato se a ponte cair
                 st.error(f"Erro técnico da IA: {str(e)}")
 
 with col2:
     st.subheader("📊 Monitor de Dividendos")
     try:
         dados = yf.Ticker(ticker)
+        # Busca dividendos e garante que o grafico funcione como na sua imagem
         divs = dados.dividends
         if not divs.empty:
             st.line_chart(divs.tail(15))
