@@ -1,10 +1,10 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import altair as alt
+import plotly.graph_objects as go
 
-# 1. Setup Profissional
-st.set_page_config(page_title="InvestSmart Pro | Terminal Master", layout="wide")
+# 1. Configuração e Estilo
+st.set_page_config(page_title="InvestSmart Pro | Terminal Candle", layout="wide")
 st.markdown("<style>.main { background-color: #0e1117; color: white; }</style>", unsafe_allow_html=True)
 
 # 2. Login
@@ -15,18 +15,18 @@ if not st.session_state['auth']:
         if senha == "sandro2026": st.session_state['auth'] = True; st.rerun()
     st.stop()
 
-# --- 3. MOTOR DE BUSCA INTELIGENTE ---
+# --- 3. MOTOR DE BUSCA ---
 def buscar_dados(t):
     try:
-        for s in [f"{t}.SA", t, t.replace(".SA", "")]:
+        for s in [f"{t}.SA", t, t.replace(".SA", "")] :
             obj = yf.Ticker(s)
-            hist = obj.history(period="200d")
+            hist = obj.history(period="60d")
             if not hist.empty: return obj, hist, obj.info
         return None, None, None
     except: return None, None, None
 
 # --- 4. INTERFACE ---
-st.title("🏛️ InvestSmart Pro | Gestor de Renda & Risco")
+st.title("🏛️ InvestSmart Pro | Terminal de Elite")
 
 with st.sidebar:
     st.header("🔍 Radar Master")
@@ -38,13 +38,14 @@ with st.sidebar:
 if ticker_final:
     obj, hist, info = buscar_dados(ticker_final)
     if hist is not None:
-        hist['MA9'] = hist['Close'].rolling(window=9).mean()
-        hist['MA200'] = hist['Close'].rolling(window=200).mean()
+        # Cálculos de Indicadores
+        hist['EMA9'] = hist.Close.ewm(span=9, adjust=False).mean()
         atual = hist['Close'].iloc[-1]
         
-        col1, col2 = st.columns([1, 1.4])
+        col1, col2 = st.columns([1, 2.5]) # Aumentamos a proporção do gráfico
+        
         with col1:
-            st.subheader("🤖 Veredito do Mentor")
+            st.subheader("🤖 Mentor IA")
             simbolo = "US$" if "-" in ticker_final else "R$"
             st.metric("Preço Atual", f"{simbolo} {atual:,.2f}")
             
@@ -55,28 +56,46 @@ if ticker_final:
                 preco_justo = (pago_ano / 0.06) if pago_ano > 0 else (vpa * 1.5 if vpa > 0 else atual * 0.95)
                 st.write(f"### 🎯 Preço Justo: {simbolo} {preco_justo:,.2f}")
             else:
-                preco_justo = hist['MA200'].iloc[-1] * 1.15
-                st.write(f"### 🎯 Preço Justo (Ciclo): US$ {preco_justo:,.2f}")
+                # Preço justo aproximado para Cripto (Média Móvel)
+                ma200 = hist['Close'].mean()
+                preco_justo = ma200 * 1.10
+                st.write(f"### 🎯 Preço Justo: US$ {preco_justo:,.2f}")
             
-            # --- MENSAGEM DE AÇÃO ---
-            if atual < preco_justo and atual > hist['MA9'].iloc[-1]:
-                st.success("✅ BOA PARA COMPRAR: Preço e Gráfico alinhados!")
-            elif atual < preco_justo:
-                st.info("⏳ AGUARDE: Preço bom, mas o gráfico ainda cai.")
+            st.divider()
+            # GATILHO DE COMPRA
+            if atual > hist['EMA9'].iloc[-1]:
+                st.success("✅ GATILHO ATIVADO: Tendência de Alta!")
             else:
-                st.warning("⚠️ CARO: Preço acima do valor justo.")
+                st.error("📉 AGUARDE: Tendência de Queda.")
 
         with col2:
-            st.subheader("📊 Gráfico de Gatilho")
-            chart_data = hist.tail(40).reset_index()
-            base = alt.Chart(chart_data).encode(x='Date:T')
-            line = base.mark_line(color='#008cff', size=3).encode(y=alt.Y('Close:Q', scale=alt.Scale(zero=False)))
-            ma9 = base.mark_line(color='#ffaa00', strokeDash=[5,5]).encode(y='MA9:Q')
-            st.altair_chart(line + ma9, use_container_width=True)
+            st.subheader(f"📊 Gráfico Candlestick: {ticker_final}")
+            # Criando o gráfico profissional com Plotly
+            fig = go.Figure(data=[go.Candlestick(
+                x=hist.index,
+                open=hist['Open'],
+                high=hist['High'],
+                low=hist['Low'],
+                close=hist['Close'],
+                name='Candles',
+                increasing_line_color= '#00ff00', decreasing_line_color= '#ff0000'
+            )])
+            
+            # Adicionando a Média Móvel (EMA9)
+            fig.add_trace(go.Scatter(x=hist.index, y=hist['EMA9'], mode='lines', name='EMA 9', line=dict(color='#ffaa00', width=2)))
+            
+            fig.update_layout(
+                template='plotly_dark',
+                xaxis_rangeslider_visible=False,
+                margin=dict(l=10, r=10, t=10, b=10),
+                height=450
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
-    # --- RESERVA PARA O CHATBOT ---
+    # --- ESPAÇO PARA O FUTURO CHATBOT ---
     st.divider()
     st.subheader("💬 Chatbot Mentor IA")
-    pergunta = st.text_input("Como posso ajudar na sua decisão hoje?", placeholder="Digite sua dúvida aqui (em breve disponível)...", disabled=True)
+    st.info("Aqui instalaremos o chatbot para responder dúvidas sobre o mercado.")
+
 else:
-    st.info("👋 Radar pronto. Escolha um ativo para começar.")
+    st.info("👋 Selecione um ativo para ver o gráfico de Candles.")
