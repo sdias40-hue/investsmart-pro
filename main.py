@@ -4,7 +4,7 @@ import pandas as pd
 import altair as alt
 
 # 1. Configuração de Interface
-st.set_page_config(page_title="InvestSmart Pro | Terminal de Elite", layout="wide")
+st.set_page_config(page_title="InvestSmart Pro | Gestor Master", layout="wide")
 st.markdown("<style>.main { background-color: #0e1117; color: white; }</style>", unsafe_allow_html=True)
 
 # 2. Login
@@ -15,97 +15,98 @@ if not st.session_state['auth']:
         if senha == "sandro2026": st.session_state['auth'] = True; st.rerun()
     st.stop()
 
-# --- 3. INTELIGÊNCIA DE MERCADO (TOP 5) ---
-top_acoes = ["BBAS3.SA", "TAEE11.SA", "VULC3.SA", "PETR4.SA", "JEPP34.SA"]
-top_cripto = ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "ADA-USD"]
-yield_staking = {"SOL-USD": 0.07, "ETH-USD": 0.035, "BNB-USD": 0.025, "ADA-USD": 0.03, "BTC-USD": 0.0}
+# --- 3. MOTOR DE BUSCA COM INTELIGÊNCIA DE SETOR ---
+def buscar_dados_completos(t):
+    try:
+        # Tripla tentativa de ticker para evitar erro 404 em BDRs
+        for s in [f"{t}.SA", t, t.replace(".SA", "")]:
+            obj = yf.Ticker(s)
+            hist = obj.history(period="60d")
+            if not hist.empty:
+                # Captura o setor e info da empresa
+                info = obj.info
+                return obj, hist, info
+        return None, None, None
+    except: return None, None, None
 
 # --- 4. RADAR DE SELEÇÃO ---
 with st.sidebar:
-    st.header("🔍 Seleção de Ativos")
-    aba = st.radio("Escolha a Categoria:", ["Ações / BDRs", "Criptomoedas"])
+    st.header("🔍 Radar Master")
+    aba = st.radio("Categoria:", ["Ações / BDRs", "Criptomoedas"])
     
-    if aba == "Ações / BDRs":
-        sugestao = st.selectbox("Top 5 Dividendos:", [""] + top_acoes)
-    else:
-        sugestao = st.selectbox("Top 5 Staking:", [""] + top_cripto)
-        
-    ticker_input = st.text_input("Ou Digite qualquer Ticker:", "").upper()
+    opcoes = ["BBAS3", "TAEE11", "VULC3", "JEPP34", "PETR4"] if aba == "Ações / BDRs" else ["BTC-USD", "ETH-USD", "SOL-USD"]
+    sugestao = st.selectbox("Favoritos:", [""] + opcoes)
+    ticker_input = st.text_input("Ou digite o Ticker:", "").upper()
     ticker_final = ticker_input if ticker_input else sugestao
 
-# --- 5. MOTOR DE BUSCA ROBUSTO ---
-def buscar_dados(t):
-    try:
-        obj = yf.Ticker(t)
-        hist = obj.history(period="60d")
-        if hist.empty and ".SA" not in t and "-" not in t:
-            obj = yf.Ticker(f"{t}.SA")
-            hist = obj.history(period="60d")
-        return obj, hist if not hist.empty else None
-    except: return None, None
-
-# --- 6. INTERFACE PRINCIPAL ---
-st.title("🏛️ InvestSmart Pro | Gestor de Oportunidades")
+# --- 5. INTERFACE PRINCIPAL ---
+st.title("🏛️ InvestSmart Pro | Analista Híbrido")
 
 if ticker_final:
-    obj, hist = buscar_dados(ticker_final)
+    obj, hist, info = buscar_dados_completos(ticker_final)
     
     if hist is not None:
-        # Cálculos de Tendência
+        # Cálculos de Tendência Gráfica
         hist['MA9'] = hist['Close'].rolling(window=9).mean()
         atual = hist['Close'].iloc[-1]
         ma9_atual = hist['MA9'].iloc[-1]
         var = ((atual / hist['Close'].iloc[-2]) - 1) * 100
         
-        col1, col2 = st.columns([1, 1.5], gap="large")
+        col1, col2 = st.columns([1, 1.4], gap="large")
         
         with col1:
-            st.subheader("🤖 Analista Sentinela")
-            simbolo = "US$" if "-" in ticker_final else "R$"
+            st.subheader("🤖 Mentor InvestSmart")
+            # Identificação de Setor
+            setor = info.get('sector', 'Setor Global / Cripto')
+            st.caption(f"📍 Setor: {setor}")
+            
+            simbolo = "US$" if "USD" in ticker_final else "R$"
             st.metric(f"Preço {ticker_final}", f"{simbolo} {atual:,.2f}", f"{var:.2f}%")
             
-            # --- LÓGICA AÇÕES (BAZIN) ---
+            # --- CONSELHO FUNDAMENTALISTA ---
+            st.divider()
+            st.write("### 📜 Conselho do Mentor")
+            
+            # Lógica para Ações/BDRs
             if "-" not in ticker_final:
                 divs = obj.dividends
                 if not divs.empty:
                     pago_ano = divs.tail(4).sum()
                     preco_justo = pago_ano / 0.06
-                    st.write(f"### 🎯 Preço Justo: {simbolo} {preco_justo:,.2f}")
-                    if atual < preco_justo:
-                        st.success("💎 OPORTUNIDADE: Abaixo do preço justo!")
-                else: st.info("Buscando histórico de proventos...")
-
-            # --- LÓGICA CRIPTO (STAKING) ---
+                    
+                    # Confluência de Sinais
+                    if atual < preco_justo and atual > ma9_atual:
+                        st.success("💎 OPORTUNIDADE DE OURO: Ativo barato e em tendência de alta!")
+                    elif atual < preco_justo:
+                        st.info("🐢 FUNDAMENTALISTA: Barato, mas aguarde o gráfico reagir.")
+                    elif atual > ma9_atual:
+                        st.warning("🚀 MOMENTUM: Gráfico subindo, mas preço acima do justo.")
+                    else:
+                        st.error("❌ ALERTA: Caro e em queda. Fique de fora.")
+                    
+                    st.write(f"**Preço Justo (Bazin):** {simbolo} {preco_justo:,.2f}")
+                else:
+                    st.write("Ativo em fase de crescimento. Foco em ganho de capital.")
+            
+            # Lógica para Criptos
             else:
-                yield_est = yield_staking.get(ticker_final, 0.04) # 4% default
-                st.write(f"### ⛏️ Yield de Staking: {yield_est*100:.1f}% a.a.")
-                st.info("Preço Justo em cripto é baseado em ciclos de Halving e RSI.")
-
-            # --- TENDÊNCIA GRÁFICA ---
-            st.divider()
-            if atual > ma9_atual:
-                st.success("📈 TENDÊNCIA DE ALTA (Gráfico)")
-            else:
-                st.error("📉 TENDÊNCIA DE BAIXA (Gráfico)")
-                
-            if var < -1.5:
-                st.warning("🚨 QUEDA DE PREÇO BOA PARA COMPRAR!")
+                if atual > ma9_atual:
+                    st.success("🔥 CRIPTO ALERTA: Tendência de alta confirmada no curto prazo.")
+                else:
+                    st.error("❄️ CRIPTO ALERTA: Tendência de queda. Risco de Staking.")
 
         with col2:
-            st.subheader("📊 Gráfico de Tendência (30 dias)")
+            st.subheader("📊 Gráfico de Tendência (Analista)")
             chart_data = hist.tail(30).reset_index()
             base = alt.Chart(chart_data).encode(x='Date:T')
             line = base.mark_line(color='#008cff', size=3).encode(y=alt.Y('Close:Q', scale=alt.Scale(zero=False)))
-            ma9 = base.mark_line(color='#ffaa00', strokeDash=[5,5]).encode(y='MA9:Q')
-            st.altair_chart(line + ma9, use_container_width=True)
-            st.caption("🔵 Preço | 🟠 Média Móvel (Tendência)")
+            ma9_line = base.mark_line(color='#ffaa00', strokeDash=[5,5]).encode(y='MA9:Q')
+            st.altair_chart(line + ma9_line, use_container_width=True)
             
             if "-" not in ticker_final and not obj.dividends.empty:
-                st.write("📋 **Últimos Dividendos:**")
-                st.dataframe(obj.dividends.tail(5), use_container_width=True)
-
-    else: st.error("Ativo não encontrado. Tente PETR4 ou SOL-USD.")
+                st.write("📋 **Histórico de Dividendos Recentes:**")
+                st.dataframe(obj.dividends.tail(5).to_frame().sort_index(ascending=False), use_container_width=True)
+    else:
+        st.error(f"Erro na comunicação com {ticker_final}. Tente CMIG4 ou SOL-USD.")
 else:
-    st.info("👋 Selecione um ativo nas listas ao lado ou digite um novo para começar.")
-
-st.caption("InvestSmart Pro v42.0 | Híbrido Ações & Cripto")
+    st.info("👋 Radar Master aguardando. Selecione um ativo para ver o Conselho do Mentor.")
