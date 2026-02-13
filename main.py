@@ -15,38 +15,40 @@ if not st.session_state['auth']:
         if senha == "sandro2026": st.session_state['auth'] = True; st.rerun()
     st.stop()
 
-# --- 3. MOTOR DE BUSCA COM INTELIGÊNCIA DE SETOR ---
-def buscar_dados_completos(t):
+# --- 3. BANCO DE DADOS DE RENDA CRIPTO (STAKING) ---
+yield_staking = {
+    "SOL-USD": {"yield": 0.07, "freq": "Diário"},
+    "ETH-USD": {"yield": 0.035, "freq": "Variável"},
+    "BNB-USD": {"yield": 0.026, "freq": "Diário"},
+    "ADA-USD": {"yield": 0.03, "freq": "Épocas"}
+}
+
+# --- 4. MOTOR DE BUSCA ---
+def buscar_dados(t):
     try:
-        # Tripla tentativa de ticker para evitar erro 404 em BDRs
         for s in [f"{t}.SA", t, t.replace(".SA", "")]:
             obj = yf.Ticker(s)
             hist = obj.history(period="60d")
-            if not hist.empty:
-                # Captura o setor e info da empresa
-                info = obj.info
-                return obj, hist, info
+            if not hist.empty: return obj, hist, obj.info
         return None, None, None
     except: return None, None, None
 
-# --- 4. RADAR DE SELEÇÃO ---
+# --- 5. RADAR LATERAL ---
 with st.sidebar:
     st.header("🔍 Radar Master")
     aba = st.radio("Categoria:", ["Ações / BDRs", "Criptomoedas"])
-    
-    opcoes = ["BBAS3", "TAEE11", "VULC3", "JEPP34", "PETR4"] if aba == "Ações / BDRs" else ["BTC-USD", "ETH-USD", "SOL-USD"]
+    opcoes = ["BBAS3", "TAEE11", "VULC3", "JEPP34", "PETR4"] if aba == "Ações / BDRs" else ["SOL-USD", "ETH-USD", "BNB-USD"]
     sugestao = st.selectbox("Favoritos:", [""] + opcoes)
     ticker_input = st.text_input("Ou digite o Ticker:", "").upper()
     ticker_final = ticker_input if ticker_input else sugestao
 
-# --- 5. INTERFACE PRINCIPAL ---
-st.title("🏛️ InvestSmart Pro | Analista Híbrido")
+# --- 6. INTERFACE PRINCIPAL ---
+st.title("🏛️ InvestSmart Pro | Terminal de Oportunidades")
 
 if ticker_final:
-    obj, hist, info = buscar_dados_completos(ticker_final)
+    obj, hist, info = buscar_dados(ticker_final)
     
     if hist is not None:
-        # Cálculos de Tendência Gráfica
         hist['MA9'] = hist['Close'].rolling(window=9).mean()
         atual = hist['Close'].iloc[-1]
         ma9_atual = hist['MA9'].iloc[-1]
@@ -56,57 +58,46 @@ if ticker_final:
         
         with col1:
             st.subheader("🤖 Mentor InvestSmart")
-            # Identificação de Setor
-            setor = info.get('sector', 'Setor Global / Cripto')
-            st.caption(f"📍 Setor: {setor}")
-            
             simbolo = "US$" if "USD" in ticker_final else "R$"
             st.metric(f"Preço {ticker_final}", f"{simbolo} {atual:,.2f}", f"{var:.2f}%")
             
-            # --- CONSELHO FUNDAMENTALISTA ---
             st.divider()
             st.write("### 📜 Conselho do Mentor")
             
-            # Lógica para Ações/BDRs
+            # LÓGICA DE GATILHO PARA QUEM NÃO ENTENDE DE GRÁFICO
+            if atual > ma9_atual:
+                st.success("✅ GATILHO ATIVADO: O gráfico reagiu! O preço cruzou a média para cima. Momento favorável.")
+            else:
+                st.error("⚠️ AGUARDE: O gráfico ainda não reagiu. O preço está abaixo da média de segurança.")
+
+            # EXIBIÇÃO DE RENDA (AÇÕES OU CRIPTO)
             if "-" not in ticker_final:
                 divs = obj.dividends
                 if not divs.empty:
                     pago_ano = divs.tail(4).sum()
-                    preco_justo = pago_ano / 0.06
-                    
-                    # Confluência de Sinais
-                    if atual < preco_justo and atual > ma9_atual:
-                        st.success("💎 OPORTUNIDADE DE OURO: Ativo barato e em tendência de alta!")
-                    elif atual < preco_justo:
-                        st.info("🐢 FUNDAMENTALISTA: Barato, mas aguarde o gráfico reagir.")
-                    elif atual > ma9_atual:
-                        st.warning("🚀 MOMENTUM: Gráfico subindo, mas preço acima do justo.")
-                    else:
-                        st.error("❌ ALERTA: Caro e em queda. Fique de fora.")
-                    
-                    st.write(f"**Preço Justo (Bazin):** {simbolo} {preco_justo:,.2f}")
-                else:
-                    st.write("Ativo em fase de crescimento. Foco em ganho de capital.")
-            
-            # Lógica para Criptos
+                    st.write(f"**Renda (Dividendos):** {simbolo} {pago_ano:,.2f} no último ano.")
+                    st.write(f"**Preço Justo:** {simbolo} {pago_ano/0.06:,.2f}")
             else:
-                if atual > ma9_atual:
-                    st.success("🔥 CRIPTO ALERTA: Tendência de alta confirmada no curto prazo.")
-                else:
-                    st.error("❄️ CRIPTO ALERTA: Tendência de queda. Risco de Staking.")
+                # Informações de Staking para Cripto
+                dados_s = yield_staking.get(ticker_final, {"yield": 0.04, "freq": "Diário"})
+                st.write(f"### ⛏️ Renda (Staking)")
+                st.write(f"**Retorno Anual:** {dados_s['yield']*100:.1f}% a.a.")
+                st.write(f"**Pagamento:** {dados_s['freq']}")
+                st.info("Criptomoedas geram novas moedas como recompensa (Staking), similar a dividendos.")
 
         with col2:
-            st.subheader("📊 Gráfico de Tendência (Analista)")
+            st.subheader("📊 Gráfico de Tendência")
             chart_data = hist.tail(30).reset_index()
             base = alt.Chart(chart_data).encode(x='Date:T')
             line = base.mark_line(color='#008cff', size=3).encode(y=alt.Y('Close:Q', scale=alt.Scale(zero=False)))
             ma9_line = base.mark_line(color='#ffaa00', strokeDash=[5,5]).encode(y='MA9:Q')
             st.altair_chart(line + ma9_line, use_container_width=True)
-            
-            if "-" not in ticker_final and not obj.dividends.empty:
-                st.write("📋 **Histórico de Dividendos Recentes:**")
-                st.dataframe(obj.dividends.tail(5).to_frame().sort_index(ascending=False), use_container_width=True)
-    else:
-        st.error(f"Erro na comunicação com {ticker_final}. Tente CMIG4 ou SOL-USD.")
+            st.caption("🔵 Preço | 🟠 Média de Segurança (Gatilho)")
+
+    # --- ESPAÇO PARA O FUTURO CHATBOT ---
+    st.divider()
+    st.subheader("💬 Mentor IA Chat (Em breve)")
+    st.text_input("Faça uma pergunta para a IA sobre este ativo:", disabled=True, placeholder="Em breve você poderá tirar dúvidas aqui...")
+
 else:
-    st.info("👋 Radar Master aguardando. Selecione um ativo para ver o Conselho do Mentor.")
+    st.info("👋 Selecione um ativo ao lado para iniciar a análise.")
