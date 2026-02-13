@@ -1,91 +1,84 @@
 import streamlit as st
 import yfinance as yf
 import requests
+import json
 import pandas as pd
 import altair as alt
 
-# 1. Configuração e Estilo
-st.set_page_config(page_title="InvestSmart Pro | Cripto Scanner", layout="wide")
+# 1. Setup Premium
+st.set_page_config(page_title="InvestSmart Pro | O Bote", layout="wide")
 st.markdown("<style>.main { background-color: #0e1117; color: white; }</style>", unsafe_allow_html=True)
 
-# 2. Login
+# 2. Login de Segurança
 if 'auth' not in st.session_state: st.session_state['auth'] = False
 if not st.session_state['auth']:
-    senha = st.text_input("Acesso:", type="password")
-    if st.button("Entrar"):
+    senha = st.text_input("Chave Mestra:", type="password")
+    if st.button("Abrir Terminal"):
         if senha == "sandro2026": st.session_state['auth'] = True; st.rerun()
     st.stop()
 
 # --- 3. RADAR DE CRIPTO ---
 with st.sidebar:
     st.header("⚡ Cripto Scanner")
-    # Moedas com foco em liquidez e staking (renda passiva cripto)
-    criptos_radar = ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "ADA-USD"]
-    moeda_selecionada = st.selectbox("Escolha para Monitorar:", criptos_radar)
-    
+    moeda = st.selectbox("Moeda:", ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "ADA-USD"])
     st.divider()
-    st.subheader("🤖 Configuração do Robô")
-    alerta_vol = st.slider("Alerta de Volatilidade (%)", 1.0, 10.0, 3.0)
+    alerta_vol = st.slider("Alerta Volatilidade (%)", 1.0, 10.0, 3.0)
 
-# --- 4. MOTOR DE BUSCA (Rota Especializada para Cripto) ---
-def scanner_cripto(ticker):
+# --- 4. O BOTE: CONEXÃO DIRETA COM A IA ---
+def mentor_ia_comunicar(ticker, var, preco):
     try:
-        data = yf.Ticker(ticker)
-        # Busca dados de 1 hora com intervalos de 15 minutos para ser "tempo real"
-        hist = data.history(period="1d", interval="15m")
-        if not hist.empty:
-            return data, hist
-        return None, None
-    except:
-        return None, None
-
-# --- INTERFACE ---
-st.title("🏛️ InvestSmart Pro | Scanner de Cripto")
-
-if moeda_selecionada:
-    obj, hist = scanner_cripto(moeda_selecionada)
-    
-    if hist is not None:
-        col1, col2 = st.columns([1, 1.5], gap="large")
+        key = st.secrets["GOOGLE_API_KEY"]
+        # ROTA DIRETA v1: Sem intermediários para evitar erro 404
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={key}"
         
-        with col1:
-            st.subheader("🤖 Mentor IA (Sentinela Cripto)")
-            atual = hist['Close'].iloc[-1]
-            anterior = hist['Open'].iloc[0]
-            var = ((atual / anterior) - 1) * 100
-            
-            # Sinalizador de Cor
-            cor = "normal" if abs(var) < alerta_vol else "inverse"
-            st.metric(f"Preço {moeda_selecionada}", f"US$ {atual:,.2f}", f"{var:.2f}%", delta_color=cor)
-            
-            if abs(var) > alerta_vol:
-                st.warning(f"🚨 ALERTA: {moeda_selecionada} rompeu o limite de {alerta_vol}%!")
-            
-            if st.button("✨ Analisar Ciclo"):
-                try:
-                    key = st.secrets["GOOGLE_API_KEY"]
-                    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={key}"
-                    prompt = f"O {moeda_selecionada} variou {var:.2f}% em 24h. Isso indica oportunidade ou risco?"
-                    res = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=10)
-                    st.info(res.json()['candidates'][0]['content']['parts'][0]['text'])
-                except:
-                    st.error("Erro de comunicação com o cérebro da IA.")
+        headers = {'Content-Type': 'application/json'}
+        prompt = f"Aja como um investidor experiente. O {ticker} está custando US$ {preco:,.2f} com variação de {var:.2f}%. Dê uma dica rápida de formação de renda."
+        
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        
+        response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
+        
+        if response.status_code == 200:
+            return response.json()['candidates'][0]['content']['parts'][0]['text']
+        else:
+            return f"Erro de Conexão {response.status_code}. Verifique sua chave no Secrets."
+    except Exception as e:
+        return f"Erro Técnico: {str(e)}"
 
-        with col2:
-            st.subheader("📊 Movimentação de Curto Prazo")
-            # Gráfico de Área para Cripto (Fica mais profissional)
-            chart_data = hist.reset_index()
-            chart = alt.Chart(chart_data).mark_area(
-                line={'color':'#008cff'},
-                color=alt.Gradient(
-                    gradient='linear',
-                    stops=[alt.GradientStop(color='white', offset=0),
-                           alt.GradientStop(color='#008cff', offset=1)],
-                    x1=1, x2=1, y1=1, y2=0
-                )
-            ).encode(x='Datetime:T', y='Close:Q').properties(height=350)
-            st.altair_chart(chart, use_container_width=True)
-    else:
-        st.error("Falha na conexão com a Exchange. Tentando reconectar...")
+# --- 5. INTERFACE ---
+st.title("🏛️ InvestSmart Pro | Scanner Sentinela")
 
-st.caption("InvestSmart Pro v31.0 | Scanner Cripto 24/7")
+# Busca de dados
+data_obj = yf.Ticker(moeda)
+hist = data_obj.history(period="1d", interval="15m")
+
+if not hist.empty:
+    col1, col2 = st.columns([1, 1.5], gap="large")
+    
+    with col1:
+        st.subheader("🤖 Mentor IA (Status: Ativo)")
+        atual = hist['Close'].iloc[-1]
+        var = ((atual / hist['Open'].iloc[0]) - 1) * 100
+        
+        st.metric(f"Preço {moeda}", f"US$ {atual:,.2f}", f"{var:.2f}%")
+        
+        if st.button("✨ Solicitar Insight do Mentor"):
+            with st.spinner("O Mentor está processando os dados massivos..."):
+                analise = mentor_ia_comunicar(moeda, var, atual)
+                st.info(analise)
+
+    with col2:
+        st.subheader("📊 Movimentação Real-Time")
+        # Gráfico que você aprovou
+        chart_data = hist.reset_index()
+        chart = alt.Chart(chart_data).mark_area(line={'color':'#008cff'}, color='#008cff33').encode(
+            x='Datetime:T', y=alt.Y('Close:Q', scale=alt.Scale(zero=False))
+        ).properties(height=380)
+        st.altair_chart(chart, use_container_width=True)
+
+else:
+    st.error("Falha na ponte de dados. Tentando nova rota...")
+
+st.caption("InvestSmart Pro v32.0 | Conexão Mestra Estabelecida")
