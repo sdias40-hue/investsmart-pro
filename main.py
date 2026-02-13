@@ -2,46 +2,48 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
+import time
 
-# 1. Configuração de Interface
-st.set_page_config(page_title="InvestSmart Pro | Trader Edition", layout="wide")
+# 1. Configuração e Estilo
+st.set_page_config(page_title="InvestSmart Pro | Trader", layout="wide")
 st.markdown("<style>.main { background-color: #0e1117; color: white; }</style>", unsafe_allow_html=True)
 
 # 2. Login
 if 'auth' not in st.session_state: st.session_state['auth'] = False
 if not st.session_state['auth']:
-    senha = st.text_input("Chave Mestra:", type="password")
-    if st.button("Acessar"):
+    senha = st.text_input("Acesso Master:", type="password")
+    if st.button("Abrir Terminal"):
         if senha == "sandro2026": st.session_state['auth'] = True; st.rerun()
     st.stop()
 
-# --- 3. MOTOR DE ANÁLISE TRADER ---
-def buscar_dados(t):
-    for s in [f"{t}.SA", t, t.replace(".SA", "")]:
-        obj = yf.Ticker(s); h = obj.history(period="60d")
-        if not h.empty: return obj, h, obj.info
-    return None, None, None
+# --- 3. MOTOR COM CACHE (Blindagem contra RateLimitError) ---
+@st.cache_data(ttl=900) # Guarda os dados por 15 minutos
+def buscar_dados_seguro(t):
+    try:
+        for s in [f"{t}.SA", t, t.replace(".SA", "")]:
+            obj = yf.Ticker(s)
+            h = obj.history(period="60d")
+            if not h.empty: return obj, h, obj.info
+        return None, None, None
+    except Exception as e:
+        return None, None, None
 
-# --- 4. INTERFACE PRINCIPAL ---
-st.title("🏛️ InvestSmart Pro | Terminal Trader")
-
+# --- 4. RADAR ---
 with st.sidebar:
     st.header("🔍 Radar Master")
     aba = st.radio("Categoria:", ["Ações / BDRs", "Criptomoedas"])
-    opcoes = ["VULC3", "BBAS3", "TAEE11", "SOL-USD"]
+    opcoes = ["VULC3", "BBAS3", "TAEE11", "JEPP34"] if aba == "Ações / BDRs" else ["SOL-USD", "ETH-USD", "BNB-USD"]
     ticker_final = st.text_input("Digite o Ticker:", "").upper() or st.selectbox("Favoritos:", [""] + opcoes)
 
+# --- 5. INTERFACE ---
 if ticker_final:
-    obj, hist, info = buscar_dados(ticker_final)
+    obj, hist, info = buscar_dados_seguro(ticker_final)
     if hist is not None:
-        # Cálculos Técnicos
+        # Indicadores de Trader
         hist['EMA9'] = hist.Close.ewm(span=9, adjust=False).mean()
+        res = hist['High'].max()
+        sup = hist['Low'].min()
         atual = hist['Close'].iloc[-1]
-        ma9 = hist['EMA9'].iloc[-1]
-        
-        # Identificando Suporte e Resistência (Mínimas e Máximas do período)
-        resistencia = hist['High'].max()
-        suporte = hist['Low'].min()
         
         col1, col2 = st.columns([1, 2.3])
         with col1:
@@ -49,42 +51,38 @@ if ticker_final:
             simbolo = "US$" if "-" in ticker_final else "R$"
             st.metric(f"Preço {ticker_final}", f"{simbolo} {atual:,.2f}")
             
-            # RESPOSTA DINÂMICA DA IA
+            # ANÁLISE FUNDAMENTALISTA E RISCO
             st.divider()
-            if atual > ma9:
-                status_grafico = "em clara tendência de ALTA"
-                conselho = "O momentum é comprador. Atenção à resistência."
+            if "-" not in ticker_final: # Ações
+                pago_ano = obj.dividends.tail(4).sum()
+                st.write(f"**Preço Justo (Bazin):** {simbolo} {pago_ano/0.06:,.2f}")
+                st.success("🛡️ PERFIL CONSERVADOR") if pago_ano > 0 else st.error("⚠️ PERFIL AGRESSIVO")
+            else: # Criptos (Mentoria Staking)
+                st.write("### ⛏️ Mentoria: Staking")
+                st.info("Este ativo gera 'Dividendos Digitais'. Rendimento Est.: 3.5% a 7% a.a.")
+                st.error("⚠️ PERFIL AGRESSIVO")
+            
+            # GATILHO TRADER
+            if atual > hist['EMA9'].iloc[-1]:
+                st.success("✅ GATILHO ATIVADO: Gráfico reagindo para alta!")
             else:
-                status_grafico = "em fase de CORREÇÃO"
-                conselho = "Aguarde o preço superar a média amarela para confirmar entrada."
-
-            st.write(f"### 🎯 Veredito")
-            if atual > ma9 and atual < resistencia * 0.95:
-                st.success(f"O ativo está {status_grafico}. {conselho}")
-            else:
-                st.warning(f"Cuidado: Ativo {status_grafico}. Suporte em {simbolo} {suporte:,.2f}")
+                st.error("📉 AGUARDE: Abaixo da média de gatilho.")
 
         with col2:
-            st.subheader("📊 Gráfico com Linhas de Análise")
-            fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist.Open, high=hist.High, low=hist.Low, close=hist.Close, name='Candles')])
-            
-            # Linha de Média Móvel (Gatilho)
+            st.subheader("📊 Gráfico Profissional (Candlestick)")
+            fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist.Open, high=hist.High, low=hist.Low, close=hist.Close, name='Velas')])
             fig.add_trace(go.Scatter(x=hist.index, y=hist.EMA9, name='Gatilho', line=dict(color='#ffaa00', width=2)))
-            
-            # Linhas de Trader (Suporte e Resistência)
-            fig.add_hline(y=resistencia, line_dash="dot", line_color="red", annotation_text="Resistência (Topo)")
-            fig.add_hline(y=suporte, line_dash="dot", line_color="green", annotation_text="Suporte (Fundo)")
-            
+            # Linhas de Trader (Suporte/Resistência)
+            fig.add_hline(y=res, line_dash="dot", line_color="red", annotation_text="Resistência")
+            fig.add_hline(y=sup, line_dash="dot", line_color="green", annotation_text="Suporte")
             fig.update_layout(template='plotly_dark', xaxis_rangeslider_visible=False, height=450)
             st.plotly_chart(fig, use_container_width=True)
-
-        # 5. CHATBOT COM RESPOSTAS VARIADAS (Baseado em Lógica)
+            
+        # 6. CHATBOT COM RESPOSTA DINÂMICA
         st.divider()
         st.subheader("💬 Mentor IA Chat")
-        pergunta = st.text_input("Pergunte algo sobre este ativo:")
+        pergunta = st.text_input("Qual sua dúvida sobre este ativo?")
         if pergunta:
-            # Aqui simulamos uma resposta variada baseada nos dados reais
-            distancia_topo = ((resistencia / atual) - 1) * 100
-            st.write(f"**Mentor responde:** Sobre '{pergunta}', observe que o ativo está a {distancia_topo:.1f}% da sua resistência principal. O setor de {info.get('sector', 'Global')} está volátil, então foque no suporte de {simbolo} {suporte:,.2f} para proteção.")
+            st.write(f"**Mentor:** Para responder '{pergunta}', analisei que o ativo está em {'alta' if atual > hist.EMA9.iloc[-1] else 'queda'}. Foque no suporte de {simbolo} {sup:,.2f} como proteção.")
 
-else: st.info("👋 Selecione um ativo para iniciar a análise trader.")
+else: st.info("👋 Selecione um ativo para iniciar.")
