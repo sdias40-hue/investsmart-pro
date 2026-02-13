@@ -3,96 +3,80 @@ import yfinance as yf
 import pandas as pd
 import altair as alt
 
-# 1. Setup
-st.set_page_config(page_title="InvestSmart Pro | Preço Justo", layout="wide")
+# 1. Setup Profissional
+st.set_page_config(page_title="InvestSmart Pro | Terminal Master", layout="wide")
 st.markdown("<style>.main { background-color: #0e1117; color: white; }</style>", unsafe_allow_html=True)
 
 # 2. Login
 if 'auth' not in st.session_state: st.session_state['auth'] = False
 if not st.session_state['auth']:
-    senha = st.text_input("Chave Mestra:", type="password")
-    if st.button("Acessar"):
+    senha = st.text_input("Acesso ao Terminal:", type="password")
+    if st.button("Abrir"):
         if senha == "sandro2026": st.session_state['auth'] = True; st.rerun()
     st.stop()
 
-# --- 3. MOTOR DE BUSCA COM INTELIGÊNCIA ---
+# --- 3. MOTOR DE BUSCA INTELIGENTE ---
 def buscar_dados(t):
     try:
         for s in [f"{t}.SA", t, t.replace(".SA", "")]:
             obj = yf.Ticker(s)
-            hist = obj.history(period="200d") # 200 dias para Preço Justo Cripto
+            hist = obj.history(period="200d")
             if not hist.empty: return obj, hist, obj.info
         return None, None, None
     except: return None, None, None
 
-# --- 4. RADAR ---
+# --- 4. INTERFACE ---
+st.title("🏛️ InvestSmart Pro | Gestor de Renda & Risco")
+
 with st.sidebar:
     st.header("🔍 Radar Master")
     aba = st.radio("Categoria:", ["Ações / BDRs", "Criptomoedas"])
-    opcoes = ["BBAS3", "TAEE11", "MXRF11", "JEPP34"] if aba == "Ações / BDRs" else ["BTC-USD", "SOL-USD", "ETH-USD"]
+    opcoes = ["BBAS3", "TAEE11", "MXRF11", "JEPP34", "VULC3"] if aba == "Ações / BDRs" else ["BTC-USD", "SOL-USD", "ETH-USD"]
     sugestao = st.selectbox("Favoritos:", [""] + opcoes)
-    ticker_input = st.text_input("Digite o Ticker:", "").upper()
-    ticker_final = ticker_input if ticker_input else sugestao
+    ticker_final = st.text_input("Ou digite o Ticker:", "").upper() or sugestao
 
-# --- 5. INTERFACE ---
 if ticker_final:
     obj, hist, info = buscar_dados(ticker_final)
-    
     if hist is not None:
         hist['MA9'] = hist['Close'].rolling(window=9).mean()
         hist['MA200'] = hist['Close'].rolling(window=200).mean()
         atual = hist['Close'].iloc[-1]
-        ma9_atual = hist['MA9'].iloc[-1]
         
         col1, col2 = st.columns([1, 1.4])
-        
         with col1:
-            st.subheader("🤖 Veredito do Preço Justo")
-            simbolo = "US$" if "USD" in ticker_final else "R$"
-            st.metric(f"Preço Atual", f"{simbolo} {atual:,.2f}")
+            st.subheader("🤖 Veredito do Mentor")
+            simbolo = "US$" if "-" in ticker_final else "R$"
+            st.metric("Preço Atual", f"{simbolo} {atual:,.2f}")
             
-            # --- CÁLCULO UNIVERSAL DE PREÇO JUSTO ---
-            st.divider()
-            
-            if "-" not in ticker_final: # AÇÕES E BDRS
-                divs = obj.dividends
-                pago_ano = divs.tail(4).sum() if not divs.empty else 0
+            # --- CÁLCULO DE PREÇO JUSTO ---
+            if "-" not in ticker_final:
+                pago_ano = obj.dividends.tail(4).sum() if not obj.dividends.empty else 0
                 vpa = info.get('bookValue', 0)
-                
-                # Prioridade 1: Bazin (Dividendos) | Prioridade 2: Graham (Patrimônio)
-                preco_justo = (pago_ano / 0.06) if pago_ano > 0 else (vpa * 1.5 if vpa > 0 else atual * 0.9)
-                
-                st.write(f"### 🎯 Preço Justo Estimado: {simbolo} {preco_justo:,.2f}")
-                if atual < preco_justo:
-                    st.success("✅ OPORTUNIDADE: Abaixo do valor justo!")
-                else:
-                    st.warning("❌ ALERTA: Acima do valor justo.")
-            
-            else: # CRIPTOMOEDAS
-                ma200 = hist['MA200'].iloc[-1]
-                # Preço Justo Cripto: Geralmente próximo à média de 200 dias no ciclo
-                preco_justo_cripto = ma200 * 1.2 
-                st.write(f"### 🎯 Preço Justo (Ciclo): US$ {preco_justo_cripto:,.2f}")
-                if atual < preco_justo_cripto:
-                    st.success("✅ ZONA DE ACÚMULO: Preço atrativo para Staking.")
-                else:
-                    st.error("⚠️ ZONA DE RISCO: Ativo esticado graficamente.")
-
-            # --- GATILHO DE COMPRA ---
-            if atual > ma9_atual:
-                st.info("📈 GATILHO: Gráfico em alta. Confirmado!")
+                preco_justo = (pago_ano / 0.06) if pago_ano > 0 else (vpa * 1.5 if vpa > 0 else atual * 0.95)
+                st.write(f"### 🎯 Preço Justo: {simbolo} {preco_justo:,.2f}")
             else:
-                st.error("📉 AGUARDE: Tendência de queda no curto prazo.")
+                preco_justo = hist['MA200'].iloc[-1] * 1.15
+                st.write(f"### 🎯 Preço Justo (Ciclo): US$ {preco_justo:,.2f}")
+            
+            # --- MENSAGEM DE AÇÃO ---
+            if atual < preco_justo and atual > hist['MA9'].iloc[-1]:
+                st.success("✅ BOA PARA COMPRAR: Preço e Gráfico alinhados!")
+            elif atual < preco_justo:
+                st.info("⏳ AGUARDE: Preço bom, mas o gráfico ainda cai.")
+            else:
+                st.warning("⚠️ CARO: Preço acima do valor justo.")
 
         with col2:
-            st.subheader("📊 Gráfico Analítico")
-            chart_data = hist.tail(50).reset_index()
+            st.subheader("📊 Gráfico de Gatilho")
+            chart_data = hist.tail(40).reset_index()
             base = alt.Chart(chart_data).encode(x='Date:T')
             line = base.mark_line(color='#008cff', size=3).encode(y=alt.Y('Close:Q', scale=alt.Scale(zero=False)))
-            ma9_line = base.mark_line(color='#ffaa00', strokeDash=[5,5]).encode(y='MA9:Q')
-            st.altair_chart(line + ma9_line, use_container_width=True)
-            st.caption("🔵 Preço | 🟠 Média de Gatilho")
-    else:
-        st.error("Ativo não encontrado. Tente PETR4 ou BTC-USD.")
+            ma9 = base.mark_line(color='#ffaa00', strokeDash=[5,5]).encode(y='MA9:Q')
+            st.altair_chart(line + ma9, use_container_width=True)
+
+    # --- RESERVA PARA O CHATBOT ---
+    st.divider()
+    st.subheader("💬 Chatbot Mentor IA")
+    pergunta = st.text_input("Como posso ajudar na sua decisão hoje?", placeholder="Digite sua dúvida aqui (em breve disponível)...", disabled=True)
 else:
-    st.info("👋 Radar aguardando. Selecione um ativo para ver o Preço Justo.")
+    st.info("👋 Radar pronto. Escolha um ativo para começar.")
