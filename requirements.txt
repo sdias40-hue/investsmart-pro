@@ -4,3 +4,4 @@ yfinance
 google-generativeai
 requests
 beautifulsoup4
+plotly
