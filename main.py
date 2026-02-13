@@ -5,93 +5,86 @@ import json
 import pandas as pd
 import altair as alt
 
-# 1. Configuração e Estilo Premium
+# 1. Configuração de Página e Estilo (Foco em Separação)
 st.set_page_config(page_title="InvestSmart Pro", layout="wide", page_icon="📈")
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; color: white; }
-    [data-testid="column"] { padding: 0 35px !important; }
-    .stButton>button { width: 100%; border-radius: 5px; background-color: #007bff; color: white; font-weight: bold; }
-    </style>
-    """, unsafe_allow_html=True)
+st.markdown("<style>[data-testid='column'] { padding: 0 40px !important; }</style>", unsafe_allow_html=True)
 
 # 2. Login
 if 'auth' not in st.session_state: st.session_state['auth'] = False
 if not st.session_state['auth']:
-    senha = st.text_input("Chave", type="password")
-    if st.button("Acessar Terminal"):
-        if senha == "sandro2026":
-            st.session_state['auth'] = True
-            st.rerun()
+    with st.container():
+        senha = st.text_input("🔐 Chave de Acesso:", type="password")
+        if st.button("Entrar"):
+            if senha == "sandro2026":
+                st.session_state['auth'] = True
+                st.rerun()
     st.stop()
 
-# --- INTERFACE ---
-st.title("🏛️ InvestSmart Pro | Gestão de Ativos")
-
+# 3. Radar de Ativos (Sidebar)
 with st.sidebar:
     st.header("🔍 Radar de Ativos")
-    # Campo para digitar
-    ticker_input = st.text_input("Digite o Ticker (Ex: MXRF11, JEPP34):", "").upper()
+    ticker_input = st.text_input("Digite o Ticker:", "").upper()
     st.divider()
-    # Recuperando as Sugestões Fundamentalistas
-    st.subheader("💡 Top 5 Fundamentalistas")
+    st.subheader("💡 Sugestões do Dia")
     sugestoes = ["JEPP34", "BBAS3", "TAEE11", "PETR4", "CMIG4"]
-    escolha = st.radio("Sugestões Rápidas:", ["Nenhuma"] + sugestoes)
+    escolha = st.radio("Selecione:", ["Nenhuma"] + sugestoes)
 
 ticker_final = ticker_input if ticker_input else (escolha if escolha != "Nenhuma" else "")
 
 if ticker_final:
-    # Tratamento Inteligente de Ticker (Evita erro de timezone e .SA duplo)
-    simbolo = ticker_final.replace(".SA", "")
-    simbolo_sa = f"{simbolo}.SA"
+    # Lógica Anti-Erro de Ticker
+    simbolo_limpo = ticker_final.replace(".SA", "")
     
     col1, col2 = st.columns([1, 1.5], gap="large")
 
     with col1:
         st.subheader("🤖 Mentor IA")
-        if st.button("✨ Gerar Análise"):
-            with st.spinner("Conectando..."):
-                try:
-                    key = st.secrets["GOOGLE_API_KEY"]
-                    # Forçando Rota v1 para matar o Erro 404
-                    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={key}"
-                    payload = {"contents": [{"parts": [{"text": f"Analise a ação {ticker_final} para dividendos."}]}]}
-                    res = requests.post(url, json=payload, timeout=10)
-                    if res.status_code == 200:
-                        st.info(res.json()['candidates'][0]['content']['parts'][0]['text'])
-                    else:
-                        st.error("Erro 404 na IA. Verifique sua chave API.")
-                except:
-                    st.warning("IA em ajuste fino.")
+        if st.button("✨ Gerar Análise Profissional"):
+            try:
+                key = st.secrets["GOOGLE_API_KEY"]
+                # Rota Direta v1 (A mais estável)
+                url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={key}"
+                payload = {"contents": [{"parts": [{"text": f"Analise rápida de {ticker_final} para dividendos."}]}]}
+                res = requests.post(url, json=payload, timeout=10)
+                if res.status_code == 200:
+                    st.success("Análise Concluída:")
+                    st.info(res.json()['candidates'][0]['content']['parts'][0]['text'])
+                else:
+                    st.error(f"Erro {res.status_code}: Verifique sua API Key.")
+            except:
+                st.warning("Conexão com a IA temporariamente indisponível.")
 
     with col2:
-        st.subheader(f"📊 Proventos: {ticker_final}")
+        st.subheader(f"📊 Histórico: {ticker_final}")
         try:
-            # Tenta buscar com .SA, se der erro de timezone, tenta puro
-            ticker_data = yf.Ticker(simbolo_sa)
-            divs = ticker_data.dividends
+            # Tenta buscar com e sem .SA para evitar o erro de 'timezone'
+            data = yf.Ticker(f"{simbolo_limpo}.SA")
+            divs = data.dividends
             if divs.empty:
-                ticker_data = yf.Ticker(simbolo)
-                divs = ticker_data.dividends
+                data = yf.Ticker(simbolo_limpo)
+                divs = data.dividends
             
             if not divs.empty:
                 df = divs.tail(15).to_frame().reset_index()
                 df.columns = ['Data', 'Valor']
-                # Gráfico de Barras que você aprovou
+                
+                # Gráfico de Barras Premium (Altair)
                 chart = alt.Chart(df).mark_bar(size=30, color='#008cff').encode(
                     x=alt.X('Data:T', title='Data'),
-                    y=alt.Y('Valor:Q', title='R$'),
+                    y=alt.Y('Valor:Q', title='Valor (R$)'),
                     tooltip=['Data', alt.Tooltip('Valor', format='.3f')]
                 ).properties(height=400)
                 st.altair_chart(chart, use_container_width=True)
                 
+                # Detalhamento
                 st.subheader("📋 Detalhamento (Precisão: 0.001)")
                 df_tab = df.sort_values(by='Data', ascending=False)
                 df_tab['Valor'] = df_tab['Valor'].map('{:,.3f}'.format)
                 st.dataframe(df_tab, use_container_width=True, hide_index=True)
             else:
-                st.info(f"Sem dados de dividendos para {ticker_final}.")
-        except:
-            st.error("Erro de conexão com a B3.")
-else:
-    st.info("👋 Use o Radar para selecionar um ativo.")
+                st.warning(f"Não encontramos dividendos recentes para {ticker_final}.")
+        except Exception as e:
+            st.error("Erro na comunicação com a B3. Tente outro ticker.")
+
+st.divider()
+st.caption("InvestSmart Pro v24.0 | 2026")
