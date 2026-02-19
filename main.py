@@ -18,13 +18,12 @@ def enviar_alerta_telegram(token, chat_id, mensagem):
             data = {"chat_id": chat_id, "text": mensagem}
             response = requests.post(url, data=data)
             return response.json()
-        except Exception as e: return {"ok": False, "description": str(e)}
+        except: return {"ok": False}
     return {"ok": False}
 
-# 3. Busca de Dados (1 Minuto com Foco em Nitidez)
+# 3. Busca de Dados (1 Minuto com Ajuste de Escala)
 def buscar_dados_hb(t):
     try:
-        # Ajuste para garantir que Criptos e Ações carreguem sem erro
         ticker_search = f"{t}.SA" if "-" not in t and ".SA" not in t else t
         ticker = yf.Ticker(ticker_search)
         hist = ticker.history(period="1d", interval="1m")
@@ -47,53 +46,74 @@ with st.sidebar:
     st.header("🔔 Alertas Telegram")
     token_tg = st.text_input("Token Completo:", type="password")
     id_tg = st.text_input("Seu Chat ID (8392660003):")
-    if st.button("🚀 Testar Alerta"):
-        res = enviar_alerta_telegram(token_tg, id_tg, f"✅ Alerta InvestSmart: {ticker_final} em monitoramento!")
-        if res.get("ok"): st.success("Enviado!")
-        else: st.error("Erro no envio.")
-
+    
     st.divider()
     refresh_rate = st.slider("Atualizar a cada (seg):", 10, 60, 30)
 
-# --- 5. PAINEL HOME BROKER (Visual Profissional) ---
+# --- 5. PAINEL HOME BROKER ---
 if ticker_final:
     hist, info = buscar_dados_hb(ticker_final)
     
     if hist is not None and not hist.empty:
+        # Cálculos de Análise Estratégica
         atual = hist['Close'].iloc[-1]
         res = hist['High'].max()
         sup = hist['Low'].min()
+        preco_abertura = hist['Open'].iloc[0]
+        vol_atual = hist['Volume'].iloc[-1]
+        vol_medio = hist['Volume'].mean()
         
         st.title(f"📈 {info.get('longName', ticker_final)} | Tempo Real")
         
         c1, c2 = st.columns([1, 3])
         with c1:
-            st.metric("Preço Atual", f"R$ {atual:,.2f}" if "-" not in ticker_final else f"US$ {atual:,.2f}")
-            st.subheader("🤖 Mentor IA")
-            if atual >= res:
-                st.warning("🔥 ROMPENDO TOPO!")
-                enviar_alerta_telegram(token_tg, id_tg, f"🚨 ALERTA: {ticker_final} rompeu resistência em {atual}!")
+            st.metric("Preço Atual", f"R$ {atual:,.2f}" if "-" not in ticker_final else f"US$ {atual:,.2f}", f"{((atual/preco_abertura)-1)*100:.2f}%")
             
-            st.info(f"Sandro, o suporte está em {sup:,.2f}. Volume está acompanhando o movimento.")
+            st.subheader("🤖 Mentor IA | Veredito")
+            
+            # --- LÓGICA DE ANÁLISE ESTRATÉGICA (O que você pediu) ---
+            if atual >= res * 0.998 and vol_atual > vol_medio:
+                veredito = "🔥 COMPRA AGORA! Rompimento de topo com volume forte."
+                cor_msg = "success"
+                enviar_alerta_telegram(token_tg, id_tg, f"🚀 OPORTUNIDADE: {ticker_final} rompeu topo com volume! Preço: {atual}")
+            elif atual <= sup * 1.002:
+                veredito = "⚠️ QUEDA EM CURSO! O preço está testando o suporte. Não compre agora, aguarde o sinal de reversão."
+                cor_msg = "error"
+            elif vol_atual < vol_medio * 0.5:
+                veredito = "⏳ AGUARDE. O mercado está sem liquidez (volume baixo). Movimento incerto."
+                cor_msg = "warning"
+            else:
+                veredito = "⚖️ NEUTRO. O preço está consolidado. Monitore as extremidades."
+                cor_msg = "info"
+            
+            if cor_msg == "success": st.success(veredito)
+            elif cor_msg == "error": st.error(veredito)
+            elif cor_msg == "warning": st.warning(veredito)
+            else: st.info(veredito)
+            
+            st.write(f"**Volume:** {'Elevado' if vol_atual > vol_medio else 'Normal'}")
             invest = st.number_input("Simular Investimento:", value=1000.0)
             st.write(f"Você compra: **{invest/atual:.4f}**")
 
         with c2:
-            # Gráfico com cores dinâmicas no volume (Verde e Vermelho)
+            # Gráfico com Zoom Inteligente e Volume Colorido
             fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.75, 0.25], vertical_spacing=0.03)
             
-            # Velas de 1 minuto
+            # Velas (Candlesticks)
             fig.add_trace(go.Candlestick(x=hist.index, open=hist.Open, high=hist.High, low=hist.Low, close=hist.Close, name='1m'), row=1, col=1)
             
-            # --- VOLUME COLORIDO (O que você pediu) ---
+            # Volume Colorido
             cores_vol = ['#26a69a' if hist.Close[i] >= hist.Open[i] else '#ef5350' for i in range(len(hist))]
             fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], name='Volume', marker_color=cores_vol), row=2, col=1)
             
-            # Linhas de Alerta
+            # Linhas de Suporte e Resistência
             fig.add_hline(y=res, line_dash="dot", line_color="#ef5350", annotation_text="RESISTÊNCIA", row=1, col=1)
             fig.add_hline(y=sup, line_dash="dot", line_color="#26a69a", annotation_text="SUPORTE", row=1, col=1)
             
+            # AJUSTE DE VISUALIZAÇÃO (Foco nas Criptos)
             fig.update_layout(template='plotly_dark', xaxis_rangeslider_visible=False, height=600, margin=dict(l=0,r=0,t=0,b=0))
+            fig.update_yaxes(autorange=True, fixedrange=False, row=1, col=1) # Faz o gráfico focar no preço atual
+            
             st.plotly_chart(fig, use_container_width=True)
 
         time.sleep(refresh_rate)
