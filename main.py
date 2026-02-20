@@ -2,14 +2,15 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import requests
 import time
 
-# 1. Configuração de Interface Profissional
-st.set_page_config(page_title="InvestSmart Pro | Multi-Ativos", layout="wide")
+# 1. Setup Visual "High Clarity" (image_df2bc5.jpg)
+st.set_page_config(page_title="InvestSmart Pro | Elite", layout="wide")
 st.markdown("<style>.main { background-color: #f8f9fa; }</style>", unsafe_allow_html=True)
 
-# 2. Motor de Mensageria
+# 2. Funções de Suporte
 def enviar_alerta(token, chat_id, msg):
     if token and chat_id:
         try:
@@ -18,7 +19,7 @@ def enviar_alerta(token, chat_id, msg):
         except: pass
 
 @st.cache_data(ttl=30)
-def buscar_v94(t):
+def buscar_v95(t):
     try:
         t_up = t.upper().strip()
         is_crypto = t_up in ["BTC", "XRP", "ETH", "SOL"]
@@ -26,89 +27,94 @@ def buscar_v94(t):
         ticker = yf.Ticker(search)
         usd_brl = yf.Ticker("BRL=X").history(period="1d")['Close'].iloc[-1]
         return ticker.history(period="60d", interval="1d"), ticker.info, usd_brl
-    except: return None, None, 5.60
+    except: return None, None, 5.65
 
-# --- SIDEBAR: CENTRO DE COMANDO ---
+# --- SIDEBAR: CENTRO DE COMANDO SEPARADO ---
 with st.sidebar:
-    st.title("🛡️ Painel de Controle")
+    st.title("🛡️ Central de Comando")
     tk = st.text_input("Token Telegram:", type="password")
     cid = st.text_input("Seu ID:", value="8392660003")
     
-    if 'monitor_v94' not in st.session_state: st.session_state.monitor_v94 = {}
+    if 'monitor_v95' not in st.session_state: st.session_state.monitor_v95 = {}
     
     st.divider()
-    # Chaves únicas para permitir a limpeza completa dos campos
-    t_in = st.text_input("Ticker (Ex: VULC3 ou BTC):", key="input_ticker").upper().strip()
+    st.subheader("➕ Nova Consulta/Monitor")
     
-    is_cripto = t_in in ["BTC", "XRP", "ETH", "SOL"]
+    # Inputs com chaves dinâmicas para limpeza manual controlada
+    t_in = st.text_input("Ticker (Ex: VULC3 ou BTC):", key="f_ticker").upper().strip()
+    is_c = t_in in ["BTC", "XRP", "ETH", "SOL"]
     
-    if is_cripto:
-        v_inv = st.number_input("Investimento em REAIS (R$):", min_value=0.0, step=100.0, key="input_v_inv")
-        p_compra = st.number_input("Preço de Entrada (US$):", min_value=0.0, key="input_p_in")
-        p_alvo = st.number_input("Alvo de Venda (US$):", min_value=0.0, key="input_p_alvo")
-        qtd_acoes = 0
+    if is_c:
+        v_invest = st.number_input("Investimento (R$):", key="f_v_inv", min_value=0.0)
+        p_comp = st.number_input("Preço Compra (US$):", key="f_p_in", min_value=0.0)
+        p_alvo = st.number_input("Preço Alvo (US$):", key="f_p_out", min_value=0.0)
+        qtd = 0
     else:
-        p_compra = st.number_input("Preço da Ação (R$):", min_value=0.0, key="input_p_in_acao")
-        qtd_acoes = st.number_input("Qtd de Ações:", min_value=0, step=1, key="input_qtd")
-        p_alvo = st.number_input("Alvo de Venda (R$):", min_value=0.0, key="input_p_alvo_acao")
-        v_inv = p_compra * qtd_acoes
+        p_comp = st.number_input("Preço Compra (R$):", key="f_p_in_a", min_value=0.0)
+        qtd = st.number_input("Quantidade Ações:", key="f_qtd", min_value=0, step=1)
+        p_alvo = st.number_input("Alvo Venda (R$):", key="f_p_out_a", min_value=0.0)
+        v_invest = p_comp * qtd
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🚀 Adicionar Ativo"):
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("🚀 Monitorar"):
             if t_in:
-                st.session_state.monitor_v94[t_in] = {
-                    "is_cripto": is_cripto,
-                    "v_brl": v_inv,
-                    "p_in": p_compra,
-                    "alvo": p_alvo,
-                    "qtd": qtd_acoes
+                st.session_state.monitor_v95[t_in] = {
+                    "is_c": is_c, "v_brl": v_invest, "p_in": p_comp, "alvo": p_alvo, "qtd": qtd
                 }
                 st.rerun()
-    with col2:
-        if st.button("🗑️ Limpar Tudo"):
-            st.session_state.monitor_v94 = {}
-            # Limpa os estados dos inputs
-            for k in list(st.session_state.keys()):
-                if "input_" in k: del st.session_state[k]
+    with c2:
+        if st.button("🧹 Limpar Campos"):
+            # Limpa apenas os campos da lateral, sem apagar o que já está sendo monitorado
+            for k in ["f_ticker", "f_v_inv", "f_p_in", "f_p_out", "f_p_in_a", "f_qtd", "f_p_out_a"]:
+                if k in st.session_state: del st.session_state[k]
             st.rerun()
+
+    st.divider()
+    st.subheader("📋 Lista Ativa")
+    for t in st.session_state.monitor_v95.keys():
+        st.write(f"• {t}")
 
 # --- PAINEL PRINCIPAL ---
 st.title("🏛️ InvestSmart Pro | Monitoramento em Tempo Real")
 
-if not st.session_state.monitor_v94:
-    st.info("Sistema Online. Adicione seus ativos para iniciar o monitoramento acumulativo.")
+if not st.session_state.monitor_v95:
+    st.info("Sistema Online. Adicione ativos na lateral para monitorar.")
 else:
-    for t, cfg in st.session_state.monitor_v94.items():
-        h, info, dolar = buscar_v94(t)
+    # Cria uma cópia das chaves para permitir a exclusão durante o loop
+    tickers = list(st.session_state.monitor_v95.keys())
+    for t in tickers:
+        cfg = st.session_state.monitor_v95[t]
+        h, info, dolar = buscar_v95(t)
         
         if h is not None and not h.empty:
             p_agora = h['Close'].iloc[-1]
-            moeda = "US$" if cfg["is_cripto"] else "R$"
+            moeda = "US$" if cfg["is_c"] else "R$"
             
-            # CALCULADORA MULTI-ATIVOS
-            if cfg["is_cripto"]:
-                custo_brl = cfg["p_in"] * dolar
-                total_cotas = cfg["v_brl"] / custo_brl if custo_brl > 0 else 0
-            else:
-                total_cotas = cfg["qtd"]
-            
-            v_inv_total = cfg["v_brl"] if cfg["is_cripto"] else (cfg["p_in"] * cfg["qtd"])
-            v_hoje_brl = total_cotas * (p_agora * (dolar if cfg["is_cripto"] else 1))
-            lucro_brl = v_hoje_brl - v_inv_total
+            # Calculadora Precisa
+            total_u = cfg["v_brl"] / (cfg["p_in"] * dolar) if cfg["is_c"] and cfg["p_in"] > 0 else cfg["qtd"]
+            v_total_brl = total_u * (p_agora * (dolar if cfg["is_c"] else 1))
+            lucro_brl = v_total_brl - (cfg["v_brl"] if cfg["is_c"] else (cfg["p_in"] * cfg["qtd"]))
             
             with st.expander(f"📊 MONITORANDO: {t}", expanded=True):
                 c1, c2, c3 = st.columns([1, 1, 2])
                 with c1:
                     st.metric(f"Preço {moeda}", f"{p_agora:,.2f}")
-                    st.caption(f"Unidades: {total_cotas:.6f}")
+                    st.caption(f"Unidades: {total_u:.6f}")
+                    # BOTAO INDIVIDUAL PARA PARAR MONITORAMENTO
+                    if st.button(f"🗑️ Parar {t}", key=f"del_{t}"):
+                        del st.session_state.monitor_v95[t]
+                        st.rerun()
+
                 with c2:
                     st.metric("Lucro (R$)", f"R$ {lucro_brl:,.2f}", f"{((p_agora/cfg['p_in'])-1)*100:.2f}%" if cfg['p_in'] > 0 else "0%")
+                
                 with c3:
                     st.subheader("🤖 Mentor de Alvos")
                     if cfg['alvo'] > 0:
-                        v_no_alvo = total_cotas * (cfg['alvo'] * (dolar if cfg["is_cripto"] else 1))
-                        st.success(f"🎯 Alvo em {moeda} {cfg['alvo']:,.2f} = Lucro de **R$ {v_no_alvo - v_inv_total:,.2f}**.")
+                        v_no_alvo = total_u * (cfg['alvo'] * (dolar if cfg["is_c"] else 1))
+                        lucro_alvo = v_no_alvo - (cfg["v_brl"] if cfg["is_c"] else (cfg["p_in"] * cfg["qtd"]))
+                        st.success(f"🎯 Alvo {moeda} {cfg['alvo']:,.2f} = Lucro de **R$ {lucro_alvo:,.2f}**.")
                         
                         if p_agora >= cfg['alvo']:
                             st.warning("🚨 ALVO ATINGIDO!")
@@ -116,7 +122,7 @@ else:
 
                 fig = go.Figure(data=[go.Candlestick(x=h.index, open=h.Open, high=h.High, low=h.Low, close=h.Close)])
                 fig.update_layout(height=300, template='plotly_white', xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
-                st.plotly_chart(fig, use_container_width=True, key=f"v94_{t}")
+                st.plotly_chart(fig, use_container_width=True, key=f"v95_{t}")
         st.divider()
 
 time.sleep(30)
