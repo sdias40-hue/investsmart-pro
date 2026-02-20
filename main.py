@@ -6,94 +6,101 @@ from plotly.subplots import make_subplots
 import requests
 import time
 
-# 1. Configuração de Interface Profissional
-st.set_page_config(page_title="InvestSmart Pro | Enterprise", layout="wide")
+# 1. Configuração de Interface Enterprise
+st.set_page_config(page_title="InvestSmart Pro | Multi-Monitor", layout="wide")
 st.markdown("<style>.main { background-color: #0e1117; color: white; }</style>", unsafe_allow_html=True)
 
-# 2. Motor de Alerta Universal (Para o seu cliente configurar)
+# 2. Motor de Alerta Telegram
 def enviar_alerta_telegram(token, chat_id, mensagem):
     if token and chat_id:
         try:
             url = f"https://api.telegram.org/bot{token}/sendMessage"
             data = {"chat_id": chat_id, "text": mensagem}
-            response = requests.post(url, data=data)
-            return response.json()
-        except: return {"ok": False}
-    return {"ok": False}
+            requests.post(url, data=data)
+        except: pass
 
-# 3. Busca de Dados com Filtro de Erros
-def buscar_dados_hb(t):
+# 3. Dicionário de Teses (Para Leigos)
+TESES = {
+    "OHI": "Setor de Saúde (EUA). Investe em asilos e hospitais. Produto sólido pela demanda demográfica (envelhecimento).",
+    "JEPP34": "Renda Passiva Dolarizada. Usa estratégia de opções para pagar dividendos mensais altos. Ideal para quem busca fluxo de caixa.",
+    "BBAS3": "Setor Bancário (Brasil). Banco sólido com forte participação no Agronegócio. Historicamente bom pagador de dividendos.",
+    "BTC-USD": "Ouro Digital. Ativo escasso, usado como proteção contra a inflação das moedas tradicionais.",
+    "SOL-USD": "Infraestrutura de Tecnologia. Rede rápida para aplicativos e finanças digitais. Alta volatilidade (risco maior).",
+    "TAEE11": "Setor de Energia. Empresa de transmissão. Receita previsível e contratos longos. Muito segura para iniciantes."
+}
+
+# 4. Motor de Busca de Dados
+def buscar_dados(t):
     try:
-        ticker_search = f"{t}.SA" if "-" not in t and ".SA" not in t else t
-        ticker = yf.Ticker(ticker_search)
-        hist = ticker.history(period="1d", interval="1m")
-        if hist.empty:
-            ticker = yf.Ticker(t)
-            hist = ticker.history(period="1d", interval="1m")
+        t_search = f"{t}.SA" if "-" not in t and ".SA" not in t else t
+        ticker = yf.Ticker(t_search)
+        hist = ticker.history(period="1d", interval="5m") # 5m para dar conta de múltiplos ativos
         return hist, ticker.info
     except: return None, None
 
-# --- 4. PAINEL DE CONFIGURAÇÃO DO CLIENTE ---
+# --- SIDEBAR: CONFIGURAÇÃO DE MONITORAMENTO ---
 with st.sidebar:
-    st.header("🔑 Licença e Configuração")
-    st.info("Insira os dados do seu Bot para receber os sinais de compra/venda.")
-    token_cliente = st.text_input("Token do seu ChatBot:", type="password", help="Pegue no @BotFather")
-    id_cliente = st.text_input("Seu Chat ID:", help="Pegue no @userinfobot")
+    st.header("🔑 Configuração do Bot")
+    token_cliente = st.text_input("Token do Bot:", type="password")
+    id_cliente = st.text_input("Seu Chat ID:")
     
-    if st.button("🚀 Ativar e Testar Robô"):
-        res = enviar_alerta_telegram(token_cliente, id_cliente, "✅ Sistema InvestSmart Pro Ativado! Monitorando mercado...")
-        if res.get("ok"): st.success("Conexão com seu Bot OK!")
-        else: st.error("Falha na conexão. Verifique Token/ID.")
+    st.divider()
+    st.header("🔍 Radar Multi-Ativos")
+    st.info("Escolha os ativos para monitoramento simultâneo.")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        m_acoes = st.multiselect("Ações (B3):", ["BBAS3", "PETR4", "VALE3", "TAEE11", "VULC3"], ["BBAS3", "TAEE11"])
+        m_bdr = st.multiselect("BDR/ETFs:", ["OHI", "JEPP34", "A1IV34", "IVVB11"], ["OHI", "JEPP34"])
+    with col_b:
+        m_cripto = st.multiselect("Criptos:", ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD"], ["BTC-USD", "SOL-USD"])
 
     st.divider()
-    st.header("🔍 Radar de Ativos")
-    aba_mercado = st.radio("Mercado:", ["Ações", "ETFs / BDRs", "Criptos"])
-    opcoes = ["PETR4", "VALE3", "BBAS3"] if aba_mercado == "Ações" else ["JEPP34", "BOVA11", "IVVB11"]
-    if aba_mercado == "Criptos": opcoes = ["BTC-USD", "ETH-USD", "SOL-USD"]
+    if st.button("🚀 Iniciar Monitoramento"):
+        st.session_state.monitorando = True
+        enviar_alerta_telegram(token_cliente, id_cliente, "🕵️‍♂️ Monitoramento Multi-Ativos Iniciado!")
+
+# --- PAINEL PRINCIPAL ---
+st.title("🏛️ InvestSmart Pro | Painel de Monitoramento Estratégico")
+
+ativos_para_monitorar = m_acoes + m_bdr + m_cripto
+
+if ativos_para_monitorar:
+    cols = st.columns(3) # Grade de 3 colunas para os ativos
     
-    ticker_final = st.text_input("Ticker Manual:", "").upper() or st.selectbox("Principais:", [""] + opcoes)
+    for i, t in enumerate(ativos_para_monitorar):
+        with cols[i % 3]:
+            hist, info = buscar_dados(t)
+            if hist is not None and not hist.empty:
+                atual = hist['Close'].iloc[-1]
+                abertura = hist['Open'].iloc[0]
+                var = ((atual/abertura)-1)*100
+                
+                # Card do Ativo
+                with st.container():
+                    st.markdown(f"### {t}")
+                    st.metric("Preço", f"{atual:,.2f}", f"{var:.2f}%")
+                    
+                    # Mentor IA - Análise para Leigos
+                    tese = TESES.get(t, "Ativo de mercado global com análise técnica baseada em volume.")
+                    
+                    st.markdown(f"**O que é?** {tese}")
+                    
+                    # Veredito Estratégico
+                    if var > 1.5:
+                        st.success("🔥 MOMENTO: Compra Forte (Tendência de Alta)")
+                        if i == 0: # Alerta para o primeiro ativo apenas para não spammar
+                             enviar_alerta_telegram(token_cliente, id_cliente, f"🚀 SINAL: {t} subindo forte ({var:.2f}%)")
+                    elif var < -1.5:
+                        st.error("⚠️ CUIDADO: Queda acentuada. Aguarde suporte.")
+                    else:
+                        st.warning("⚖️ NEUTRO: Momento de observação.")
+                    
+                    # Gráfico Miniatura (Sparkline)
+                    fig = go.Figure(data=[go.Scatter(x=hist.index, y=hist['Close'], line=dict(color='#ffaa00', width=2))])
+                    fig.update_layout(template='plotly_dark', height=100, margin=dict(l=0,r=0,t=0,b=0), xaxis_visible=False, yaxis_visible=False)
+                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{t}")
+            st.divider()
 
-# --- 5. ANALISADOR ESTRATÉGICO ---
-if ticker_final:
-    hist, info = buscar_dados_hb(ticker_final)
-    
-    if hist is not None and not hist.empty:
-        # Correção do erro: Cálculo seguro da média
-        hist['EMA9'] = hist['Close'].ewm(span=9, adjust=False).mean()
-        atual = hist['Close'].iloc[-1]
-        res = hist['High'].max()
-        sup = hist['Low'].min()
-        
-        st.title(f"🏛️ Terminal {ticker_final} | {info.get('sector', 'Ativo Global')}")
-        
-        c1, c2 = st.columns([1, 2.8])
-        with c1:
-            st.metric("Preço", f"R$ {atual:,.2f}" if "-" not in ticker_final else f"US$ {atual:,.2f}")
-            st.subheader("🤖 Mentor IA")
-            
-            # Lógica de Veredito Setorial
-            ramo = info.get('industry', 'Investimentos')
-            if atual >= res * 0.999:
-                st.success(f"🔥 COMPRA! Rompimento no setor de {ramo}.")
-                enviar_alerta_telegram(token_cliente, id_cliente, f"🚨 SINAL DE COMPRA: {ticker_final} rompendo resistência em {atual}!")
-            elif atual <= sup * 1.001:
-                st.error("📉 QUEDA! Risco alto, evite compra agora.")
-            else:
-                st.info(f"O ativo de {ramo} está em zona neutra. Aguarde sinal de volume.")
-
-        with c2:
-            # Gráfico de Alta Definição (Criptos Nítidas)
-            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.75, 0.25], vertical_spacing=0.03)
-            fig.add_trace(go.Candlestick(x=hist.index, open=hist.Open, high=hist.High, low=hist.Low, close=hist.Close, name='1m'), row=1, col=1)
-            fig.add_trace(go.Scatter(x=hist.index, y=hist['EMA9'], name='Média', line=dict(color='#ffaa00', width=1)), row=1, col=1)
-            
-            # Volume Colorido
-            cv = ['#26a69a' if hist.Close[i] >= hist.Open[i] else '#ef5350' for i in range(len(hist))]
-            fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], marker_color=cv, name='Vol'), row=2, col=1)
-            
-            fig.update_layout(template='plotly_dark', xaxis_rangeslider_visible=False, height=550, margin=dict(l=0,r=0,t=0,b=0))
-            fig.update_yaxes(autorange=True, fixedrange=False, row=1, col=1)
-            st.plotly_chart(fig, use_container_width=True)
-
-        time.sleep(30)
-        st.rerun()
+    time.sleep(60)
+    st.rerun()
