@@ -5,38 +5,36 @@ import plotly.graph_objects as go
 import requests
 import time
 
-# 1. Configuração de Interface High Clarity (image_df2bc5.jpg)
-st.set_page_config(page_title="InvestSmart Pro | Trade Master", layout="wide")
+# 1. Setup de Performance (image_df2bc5.jpg)
+st.set_page_config(page_title="InvestSmart Pro | Trade Specialist", layout="wide")
 st.markdown("<style>.main { background-color: #f8f9fa; }</style>", unsafe_allow_html=True)
 
-# 2. Motor de Inteligência para Day Trade e Dividendos
-def analisar_trade(df, info, is_c):
+# 2. Motor de Análise Técnica (Day & Swing Trade)
+def analisar_sinais(df, info, is_c):
     try:
-        p_agora = df['Close'].iloc[-1]
-        p_min = df['Low'].rolling(14).min().iloc[-1]
-        p_max = df['High'].rolling(14).max().iloc[-1]
+        p_atual = df['Close'].iloc[-1]
+        # Cálculo de Suporte e Resistência (Mínimas e Máximas de 14 dias)
+        suporte = df['Low'].rolling(14).min().iloc[-1]
+        resistencia = df['High'].rolling(14).max().iloc[-1]
         
-        # Análise de Dividendos (image_31d3a8.png)
-        div_raw = info.get('dividendYield', 0)
-        div = (div_raw * 100) if (div_raw and div_raw < 1) else (div_raw if div_raw else 0)
+        # Correção de Dividendos (image_31d3a8.png)
+        div_yield = info.get('dividendYield', 0)
+        div = (div_yield * 100) if (div_yield and div_yield < 1) else (div_yield if div_yield else 0)
         
-        # Mentor Especialista em Day Trade
-        msg = f"📍 Suporte em {p_min:,.2f} | 🚩 Resistência em {p_max:,.2f}. "
-        if p_agora <= p_min * 1.02:
-            msg += "🔥 OPORTUNIDADE: Preço próximo ao suporte (ZONA DE COMPRA)."
-        elif p_agora >= p_max * 0.98:
-            msg += "⚠️ ALERTA: Preço próximo à resistência (ZONA DE VENDA)."
+        # Lógica do Mentor Especialista
+        status = f"📍 Suporte: {suporte:,.2f} | 🚩 Resistência: {resistencia:,.2f}"
+        if p_atual <= suporte * 1.015:
+            dica = "🔥 SINAL DE COMPRA: Preço testando o Suporte!"
+        elif p_atual >= resistencia * 0.985:
+            dica = "⚠️ SINAL DE VENDA: Preço próximo à Resistência!"
         else:
-            msg += "⚖️ Ativo em zona neutra de negociação."
+            dica = "⚖️ Zona Neutra: Aguarde melhor ponto de entrada."
             
-        if not is_c:
-            msg += f" | 💰 Dividendos: {div:.2f}%."
-            
-        return msg, p_min, p_max
-    except: return "Aguardando sinal técnico...", 0, 0
+        return dica, status, div, suporte, resistencia
+    except: return "Aguardando sinais...", "", 0, 0, 0
 
-@st.cache_data(ttl=30)
-def buscar_v120(t):
+@st.cache_data(ttl=15)
+def buscar_dados_v125(t):
     try:
         t_up = t.upper().strip()
         is_c = t_up in ["BTC", "XRP", "ETH", "SOL"]
@@ -45,88 +43,88 @@ def buscar_v120(t):
         h = tk.history(period="60d", interval="1d")
         usd_brl = yf.Ticker("BRL=X").history(period="1d")['Close'].iloc[-1]
         return h, tk.info, usd_brl, is_c
-    except: return None, None, 5.65, False
+    except: return None, None, 5.60, False
 
-# --- INICIALIZAÇÃO DE MEMÓRIA ---
+# --- GESTÃO DE ESTADO (MEMÓRIA BLINDADA) ---
 if 'radar' not in st.session_state: st.session_state.radar = {}
 
-# --- SIDEBAR: CONSULTA E TRADE ---
+# --- SIDEBAR: TERMINAL DE OPERAÇÕES ---
 with st.sidebar:
-    st.title("🛡️ Trade Master Pro")
-    tk = st.text_input("Token Telegram:", type="password")
-    cid = st.text_input("Seu ID:", value="8392660003")
+    st.title("🛡️ Trade Specialist")
+    tk_tg = st.text_input("Token Telegram:", type="password")
+    chat_id = st.text_input("Seu ID Telegram:", value="8392660003")
     
     st.divider()
-    st.subheader("🚀 Novo Trade (Day/Swing)")
+    st.subheader("🚀 Abrir Nova Operação")
     
-    with st.form("trade_form", clear_on_submit=True):
-        t_in = st.text_input("Ticker:").upper().strip()
-        p_compra = st.number_input("Preço de Entrada:", min_value=0.0)
-        p_venda = st.number_input("Alvo (Gain):", min_value=0.0)
-        
-        # Ajuste inteligente: Quantidade para Ações, Valor para Cripto
-        if t_in in ["BTC", "XRP", "ETH", "SOL"]:
-            valor = st.number_input("Investido (R$):", min_value=0.0)
-            qtd = 0
-        else:
-            qtd = st.number_input("Quantidade:", min_value=0, step=1)
-            valor = p_compra * qtd
-            
-        if st.form_submit_button("✅ Iniciar Monitoramento"):
-            if t_in:
-                st.session_state.radar[t_in] = {
-                    "p_in": p_compra, "alvo": p_venda, "v_brl": valor, "qtd": qtd, "is_c": t_in in ["BTC", "XRP", "ETH", "SOL"]
+    # Sistema de Inputs independentes para evitar erro de Enter (image_31d45b.png)
+    t_input = st.text_input("Ticker (Ex: VULC3, BTC):").upper().strip()
+    p_in = st.number_input("Preço de Entrada:", min_value=0.0)
+    p_out = st.number_input("Alvo (Take Profit):", min_value=0.0)
+    
+    if t_input in ["BTC", "XRP", "ETH", "SOL"]:
+        investido = st.number_input("Total em Reais (R$):", min_value=0.0)
+        quantidade = 0
+    else:
+        quantidade = st.number_input("Quantidade de Ações:", min_value=0, step=1)
+        investido = p_in * quantidade
+
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("🚀 Iniciar Trade"):
+            if t_input:
+                # Chave única por ativo (OHI != MXRF11)
+                st.session_state.radar[t_input] = {
+                    "p_in": p_in, "alvo": p_out, "v_brl": investido, "qtd": quantidade, "is_c": investido == 0
                 }
                 st.rerun()
+    with c2:
+        if st.button("🧹 Limpar Lista"):
+            st.session_state.radar = {}
+            st.rerun()
 
-    if st.button("🧹 Limpar Lista de Trades"):
-        st.session_state.radar = {}
-        st.rerun()
-
-# --- PAINEL PRINCIPAL ---
-st.title("🏛️ InvestSmart Pro | Terminal de Alta Performance")
+# --- PAINEL DE PERFORMANCE ---
+st.title("🏛️ InvestSmart Pro | Gestão de Lucro Profissional")
 
 if not st.session_state.radar:
-    st.info("Terminal pronto para Day Trade. Configure sua entrada na lateral.")
+    st.info("Terminal pronto. Configure seu Day Trade ou Swing Trade na lateral.")
 else:
     for t, cfg in list(st.session_state.radar.items()):
-        h, info, dolar, is_c = buscar_v120(t)
+        df_h, info_at, dolar, is_c = buscar_dados_v125(t)
         
-        if h is not None and not h.empty:
-            p_agora = h['Close'].iloc[-1]
-            taxa = dolar if is_c else 1.0
+        if df_h is not None and not df_h.empty:
+            p_agora = df_h['Close'].iloc[-1]
+            cambio = dolar if is_c else 1.0
             
-            # Cálculo de Lucro Day Trade (image_25fe79.png)
-            u_totais = cfg["v_brl"] / (cfg["p_in"] * taxa) if is_c else cfg["qtd"]
-            v_inv_brl = cfg["v_brl"] if is_c else (cfg["p_in"] * cfg["qtd"])
-            v_agora_brl = u_totais * (p_agora * taxa)
-            lucro_brl = v_agora_brl - v_inv_brl
+            # Calculadora de Lucro Real (image_25fe79.png)
+            u_totais = cfg["v_brl"] / (cfg["p_in"] * cambio) if is_c else cfg["qtd"]
+            v_total_brl = u_totais * (p_agora * cambio)
+            lucro_brl = v_total_brl - (cfg["v_brl"] if is_c else (cfg["p_in"] * cfg["qtd"]))
             
-            msg_mentor, sup, res = analisar_trade(h, info, is_c)
+            dica, status, div, sup, res = analisar_sinais(df_h, info_at, is_c)
             
-            with st.expander(f"📉 TRADE ATIVO: {t}", expanded=True):
-                c1, c2, c3 = st.columns([1, 1, 2])
-                with c1:
+            with st.expander(f"📈 OPERAÇÃO ATIVA: {t}", expanded=True):
+                col1, col2, col3 = st.columns([1, 1, 2])
+                with col1:
                     st.metric(f"Preço {'US$' if is_c else 'R$'}", f"{p_agora:,.2f}")
-                    if st.button(f"Encerrar {t}", key=f"stop_{t}"):
+                    if st.button(f"Encerrar {t}", key=f"enc_{t}"):
                         del st.session_state.radar[t]
                         st.rerun()
-                with c2:
+                with col2:
                     st.metric("Resultado (R$)", f"R$ {lucro_brl:,.2f}", f"{((p_agora/cfg['p_in'])-1)*100:.2f}%" if cfg['p_in'] > 0 else "0%")
-                with c3:
-                    st.subheader("🤖 Robo Especialista")
-                    st.info(msg_mentor)
+                with col3:
+                    st.subheader("🤖 Mentor Trade Specialist")
+                    st.info(f"{status}\n\n{dica}")
+                    if not is_c: st.write(f"💰 Dividend Yield: **{div:.2f}%**")
                     if cfg['alvo'] > 0:
-                        lucro_alvo = (u_totais * (cfg['alvo'] * taxa)) - v_inv_brl
-                        st.success(f"🎯 Meta de Lucro: R$ {lucro_alvo:,.2f}")
-                        if p_agora >= cfg['alvo']:
-                            st.warning("🚨 META ATINGIDA! HORA DE REALIZAR O DAY TRADE!")
+                        projecao = (u_totais * (cfg['alvo'] * cambio)) - (cfg["v_brl"] if is_c else (cfg["p_in"] * cfg["qtd"]))
+                        st.success(f"🎯 Meta de Ganho: R$ {projecao:,.2f}")
 
-                # Gráfico com Suporte e Resistência (Kandall)
-                fig = go.Figure(data=[go.Candlestick(x=h.index, open=h.Open, high=h.High, low=h.Low, close=h.Close)])
-                fig.add_hline(y=sup, line_dash="dot", line_color="green", annotation_text="Suporte")
-                fig.add_hline(y=res, line_dash="dot", line_color="red", annotation_text="Resistência")
-                fig.update_layout(height=400, template='plotly_white', xaxis_rangeslider_visible=False)
+                # Gráfico Kendall com Linhas de Suporte/Resistência (image_242d00.png)
+                fig = go.Figure(data=[go.Candlestick(x=df_h.index, open=df_h.Open, high=df_h.High, low=df_h.Low, close=df_h.Close)])
+                fig.add_hline(y=sup, line_dash="dash", line_color="green", annotation_text="Suporte")
+                fig.add_hline(y=res, line_dash="dash", line_color="red", annotation_text="Resistência")
+                fig.update_layout(height=400, template='plotly_white', xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
                 st.plotly_chart(fig, use_container_width=True, key=f"gr_{t}")
         st.divider()
 
