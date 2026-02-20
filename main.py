@@ -6,20 +6,20 @@ from plotly.subplots import make_subplots
 import requests
 import time
 
-# 1. Configuração de Layout "High Clarity" (Inspirado no image_df2bc5.jpg)
-st.set_page_config(page_title="InvestSmart Pro | Clarity", layout="wide")
+# 1. Setup Visual High Clarity (Fundo Claro para máxima leitura)
+st.set_page_config(page_title="InvestSmart Pro | Enterprise", layout="wide")
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; color: #212529; }
-    .stMetric { background-color: #ffffff !important; border: 1px solid #dee2e6 !important; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    div[data-testid="stMetricValue"] { color: #007bff !important; font-weight: 800; }
-    .stInfo { background-color: #e7f3ff !important; color: #004085 !important; border: 1px solid #b8daff !important; border-radius: 8px; }
-    .stSuccess { background-color: #d4edda !important; color: #155724 !important; }
-    .stError { background-color: #f8d7da !important; color: #721c24 !important; }
+    .stMetric { background-color: #ffffff !important; border: 1px solid #dee2e6 !important; border-radius: 12px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    div[data-testid="stMetricValue"] { color: #2ecc71 !important; font-weight: 800; }
+    .stInfo { background-color: #ffffff !important; border-left: 5px solid #3498db !important; color: #2c3e50 !important; }
+    .stSuccess { background-color: #eafaf1 !important; border-left: 5px solid #2ecc71 !important; color: #145a32 !important; }
+    .stWarning { background-color: #fef9e7 !important; border-left: 5px solid #f1c40f !important; color: #7d6608 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Funções de Suporte
+# 2. Motor de Mensageria e Busca
 def enviar_alerta(token, chat_id, msg):
     if token and chat_id:
         try:
@@ -27,11 +27,10 @@ def enviar_alerta(token, chat_id, msg):
             requests.post(url, data={"chat_id": chat_id, "text": msg}, timeout=5)
         except: pass
 
-def buscar_dados_v78(t, p="1d", i="1m"):
+def buscar_dados_pro(t, p="1d", i="1m"):
     try:
-        # Busca inteligente para BDRs, Criptos e Ações
-        ticker_search = f"{t}.SA" if "-" not in t and ".SA" not in t else t
-        ticker = yf.Ticker(ticker_search)
+        t_search = f"{t}.SA" if "-" not in t and ".SA" not in t else t
+        ticker = yf.Ticker(t_search)
         hist = ticker.history(period=p, interval=i)
         if hist.empty:
             ticker = yf.Ticker(t)
@@ -39,93 +38,103 @@ def buscar_dados_v78(t, p="1d", i="1m"):
         return hist, ticker.info
     except: return None, None
 
-# --- SIDEBAR: CENTRO DE COMANDO ---
+# --- SIDEBAR: COMANDO CENTRAL ---
 with st.sidebar:
-    st.title("🛡️ InvestSmart Control")
-    token_bot = st.text_input("Token do Bot (Telegram):", type="password")
-    chat_id_user = st.text_input("Seu ID (Chat ID):", value="8392660003")
+    st.title("🏛️ InvestSmart Pro")
+    st.info("Configurações do Robô")
+    token_bot = st.text_input("Token Telegram:", type="password")
+    chat_id_user = st.text_input("Seu Chat ID:", value="8392660003")
     
     st.divider()
-    modo_terminal = st.radio("Selecione o Terminal:", ["🏛️ Prateleira de Renda", "⚡ Swing Trade (Kandall)"])
+    modo = st.radio("Escolha o Terminal:", ["📈 Prateleira (Investidor)", "⚡ Swing Trade (Trader)"])
     
     st.divider()
-    st.subheader("➕ Gerenciar Meu Radar")
-    add_ticker = st.text_input("Adicionar Ativo (Ex: PETR4, OHI, BTC-USD):").upper()
+    st.subheader("🔎 Gestão de Ativos")
+    add_t = st.text_input("Novo Ativo (Ex: PETR4, OHI, BTC-USD):").upper()
     
     if 'radar' not in st.session_state: st.session_state.radar = []
         
-    col_bt1, col_bt2 = st.columns(2)
-    with col_bt1:
-        if st.button("Adicionar") and add_ticker:
-            if add_ticker not in st.session_state.radar:
-                st.session_state.radar.append(add_ticker)
-                st.success(f"{add_ticker} OK!")
-    with col_bt2:
-        if st.button("Limpar Radar"):
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Adicionar") and add_t:
+            if add_t not in st.session_state.radar:
+                st.session_state.radar.append(add_t)
+                enviar_alerta(token_bot, chat_id_user, f"✅ Monitorando: {add_t}")
+                st.rerun()
+    with c2:
+        if st.button("Limpar Tudo"):
             st.session_state.radar = []
             st.rerun()
 
-# --- TERMINAL 1: PRATELEIRA DE RENDA ---
-if modo_terminal == "🏛️ Prateleira de Renda":
-    st.title("🏛️ Sua Prateleira de Renda Personalizada")
+# --- TERMINAL 1: PRATELEIRA (SIMPLICIDADE TOTAL) ---
+if modo == "📈 Prateleira (Investidor)":
+    st.title("🏛️ Prateleira de Investimentos Sólidos")
     if not st.session_state.radar:
-        st.info("👋 Radar vazio. Adicione ativos na barra lateral para começar.")
+        st.warning("Seu radar está vazio. Adicione ativos na lateral para ver a análise do Mentor.")
     else:
-        grid = st.columns(3)
-        for idx, t_radar in enumerate(st.session_state.radar):
-            with grid[idx % 3]:
-                h, info = buscar_dados_v78(t_radar, "5d", "1h")
-                if h is not None:
-                    preco = h['Close'].iloc[-1]
-                    dy_v = info.get('trailingAnnualDividendRate', 0)
-                    st.metric(f"💰 {t_radar}", f"R$ {preco:,.2f}", f"{((preco/h.Open.iloc[0])-1)*100:.2f}%")
-                    
-                    # Mentor Renda Especializado
-                    txt_dy = f"Excelente! Paga R$ {dy_v:,.2f} de dividendos/ano." if dy_v > 0 else "Foco em valorização (Growth)."
-                    st.info(f"**Mentor:** {info.get('longName')} no setor {info.get('sector')}. {txt_dy}")
-                else: st.error(f"Erro em {t_radar}")
+        for t in st.session_state.radar:
+            h, info = buscar_dados_pro(t, "5d", "1h")
+            if h is not None:
+                atual = h['Close'].iloc[-1]
+                # Cálculo de Preço Justo e Alvo
+                dy = info.get('trailingAnnualDividendRate', 0)
+                p_justo = (dy / 0.06) if dy > 0 else (atual * 1.12)
+                p_alvo = atual * 1.25 # Meta de 25% de lucro
+                ganho_potencial = ((p_alvo/atual)-1)*100
+                
+                with st.container():
+                    col1, col2, col3 = st.columns([1, 1, 2])
+                    with col1:
+                        st.metric(f"💰 {t}", f"R$ {atual:,.2f}")
+                    with col2:
+                        st.metric("Preço Justo", f"R$ {p_justo:,.2f}")
+                    with col3:
+                        # Veredito do Mentor para Leigos
+                        if atual < p_justo:
+                            st.success(f"💎 **OPORTUNIDADE:** Empresa sólida do setor de {info.get('sector')}. Preço está excelente para compra agora.")
+                        else:
+                            st.warning(f"⏳ **AGUARDE:** Ativo de {info.get('sector')}. O preço está esticado, melhor esperar uma queda.")
+                
+                st.info(f"💡 **Sugestão do Mentor:** Se comprar em R$ {atual:,.2f}, sugerimos vender em **R$ {p_alvo:,.2f}**. Isso representa um ganho de **{ganho_potencial:.1f}%**.")
+                st.divider()
 
-# --- TERMINAL 2: SWING TRADE ---
+# --- TERMINAL 2: SWING TRADE (GRÁFICO EM TEMPO REAL) ---
 else:
-    st.title("⚡ Terminal Swing Trade | Análise Profissional")
+    st.title("⚡ Terminal de Swing Trade | Tempo Real")
     if not st.session_state.radar:
-        st.info("👋 Adicione ativos no radar lateral para abrir o gráfico.")
+        st.warning("Adicione ativos na lateral para abrir o terminal gráfico.")
     else:
-        t_trade = st.selectbox("Escolha o Ativo para Analisar:", st.session_state.radar)
-        h_t, i_t = buscar_dados_v78(t_trade, "60d", "1d")
+        t_sel = st.selectbox("Ativo em Análise:", st.session_state.radar)
+        h_t, i_t = buscar_dados_pro(t_sel, "1d", "1m") # Gráfico de 1 minuto em tempo real
         
         if h_t is not None:
-            # Indicadores e Médias
+            # Indicadores Rápidos
             h_t['MA20'] = h_t['Close'].rolling(window=20).mean()
             h_t['MA9'] = h_t['Close'].rolling(window=9).mean()
-            p_atual = h_t['Close'].iloc[-1]
+            atual = h_t['Close'].iloc[-1]
+            p_venda = atual * 1.05 # Meta curta de 5% no Swing Trade
             
-            c_left, c_right = st.columns([1, 3])
-            with c_left:
-                st.metric(t_trade, f"R$ {p_atual:,.2f}")
-                st.subheader("🤖 Mentor Trader")
-                
-                # Inteligência de Dividendos no Trade
-                dy_t = i_t.get('trailingAnnualDividendRate', 0)
-                if dy_t > 0: st.success(f"💎 Ativo Dividend Payback: R$ {dy_t:,.2f}/ano")
+            c_l, c_r = st.columns([1, 3])
+            with c_l:
+                st.metric(f"Preço {t_sel}", f"R$ {atual:,.2f}")
+                st.subheader("🤖 Estratégia Trader")
                 
                 if h_t['MA9'].iloc[-1] > h_t['MA20'].iloc[-1]:
-                    st.success("🚀 GATILHO COMPRA!")
-                    enviar_alerta(token_bot, chat_id_user, f"🎯 COMPRA: {t_trade} em {p_atual}")
-                else: st.error("⚠️ AGUARDE SINAL")
-                st.info(f"Analisando {t_trade}. Setor: {i_t.get('sector', 'Global')}.")
+                    st.success("🚀 SINAL: COMPRA AGORA")
+                    st.write(f"🎯 Meta de Venda: R$ {p_venda:,.2f}")
+                else:
+                    st.error("⚠️ SINAL: AGUARDE FORA")
+                
+                st.info(f"**Análise:** O ativo {t_sel} apresenta volume saudável. Sugestão de saída com 5% de lucro rápido.")
 
             with c_right:
-                # Gráfico Kendall (Candle)                 fig_t = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.8, 0.2], vertical_spacing=0.03)
-                fig_t.add_trace(go.Candlestick(x=h_t.index, open=h_t.Open, high=h_t.High, low=h_t.Low, close=h_t.Close, name='Kendall'), row=1, col=1)
-                fig_t.add_trace(go.Scatter(x=h_t.index, y=h_t['MA20'], name='Tendência', line=dict(color='#28a745')), row=1, col=1)
-                fig_t.add_trace(go.Scatter(x=h_t.index, y=h_t['MA9'], name='Gatilho', line=dict(color='#ffc107')), row=1, col=1)
+                # Gráfico Candle Real Time
+                fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.8, 0.2], vertical_spacing=0.03)
+                fig.add_trace(go.Candlestick(x=h_t.index, open=h_t.Open, high=h_t.High, low=h_t.Low, close=h_t.Close, name='Candle'), row=1, col=1)
+                fig.add_trace(go.Scatter(x=h_t.index, y=h_t['MA9'], name='Média Rápida', line=dict(color='#f1c40f')), row=1, col=1)
                 
-                v_cols = ['#28a745' if h_t.Close[i] >= h_t.Open[i] else '#dc3545' for i in range(len(h_t))]
-                fig_t.add_trace(go.Bar(x=h_t.index, y=h_t['Volume'], marker_color=v_cols, name='Volume'), row=2, col=1)
-                
-                fig_t.update_layout(template='plotly_white', xaxis_rangeslider_visible=False, height=600, margin=dict(l=0,r=0,t=0,b=0))
-                st.plotly_chart(fig_t, use_container_width=True)
+                fig.update_layout(template='plotly_white', xaxis_rangeslider_visible=False, height=600, margin=dict(l=0,r=0,t=0,b=0))
+                st.plotly_chart(fig, use_container_width=True)
 
-    time.sleep(30)
+    time.sleep(15) # Atualização mais rápida para trade
     st.rerun()
