@@ -2,117 +2,114 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import requests
 import time
 
-# 1. CSS de Alto Contraste (Fim do problema das cores apagadas)
-st.set_page_config(page_title="InvestSmart Pro | Terminal", layout="wide")
+# 1. CSS de Ultra Contraste (Fim das cores transparentes)
+st.set_page_config(page_title="InvestSmart Pro | Swing Trade", layout="wide")
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; }
-    div[data-testid="stMetricValue"] { color: #00ff88 !important; font-size: 28px !important; font-weight: bold; }
-    div[data-testid="stMetricDelta"] { color: #ffffff !important; }
-    .stInfo { background-color: #161b22; border: 1px solid #30363d; color: #e6edf3; }
-    .stMetric { background-color: #0d1117; border: 1px solid #30363d; padding: 20px; border-radius: 8px; }
+    .main { background-color: #0d1117; }
+    .stMetric { background-color: #161b22 !important; border: 1px solid #30363d !important; border-radius: 10px; padding: 15px; }
+    div[data-testid="stMetricValue"] { color: #00ff88 !important; font-weight: bold; }
+    .stInfo { background-color: #0a0d12 !important; color: #ffffff !important; border: 1px solid #00ff88 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Motor de Alerta e Teses
-def enviar_alerta_telegram(token, chat_id, mensagem):
+# 2. Motor de Alerta Trader
+def enviar_alerta(token, chat_id, msg):
     if token and chat_id:
         try:
             url = f"https://api.telegram.org/bot{token}/sendMessage"
-            requests.post(url, data={"chat_id": chat_id, "text": mensagem}, timeout=5)
+            requests.post(url, data={"chat_id": chat_id, "text": msg}, timeout=5)
         except: pass
 
-TESES = {
-    "OHI": "🏘️ REIT de Saúde (EUA). Dono de hospitais e asilos. Renda muito sólida e previsível.",
-    "JEPP34": "💵 Dividendos em Dólar. ETF que gera renda mensal constante através de opções.",
-    "BBAS3": "🏦 Banco do Brasil. Foco em Agronegócio. Uma das melhores pagadoras de dividendos da B3.",
-    "BTC-USD": "🪙 Bitcoin. O 'Ouro Digital'. Reserva de valor escassa contra a inflação global.",
-    "TAEE11": "⚡ Transmissão de Energia. Receita fixa por contrato. O porto seguro dos dividendos."
-}
-
-# 3. Motor de Dados Ultra-Rápido
-def buscar_dados_elite(t):
-    try:
-        t_search = f"{t}.SA" if "-" not in t and ".SA" not in t else t
-        ticker = yf.Ticker(t_search)
-        # Pegamos 5 dias para calcular a média de dividendos recente
-        hist = ticker.history(period="5d", interval="1h")
-        return hist, ticker.info, ticker.dividends
-    except: return None, None, None
-
-# --- SIDEBAR: O CENTRO DE COMANDO DO CLIENTE ---
+# --- SIDEBAR: COMANDO DO TRADER ---
 with st.sidebar:
-    st.title("🔑 Licença Ativa")
-    token_bot = st.text_input("Seu Token Telegram:", type="password")
-    chat_id = st.text_input("Seu ID de Usuário:")
+    st.title("🛡️ Área do Trader")
+    token_bot = st.text_input("Token Telegram:", type="password")
+    chat_id = st.text_input("Seu ID:")
     
     st.divider()
-    st.header("➕ Monitoramento Global")
-    st.info("Digite qualquer código do mundo (Ex: AAPL, VALE3, ETH-USD)")
-    add_manual = st.text_input("Adicionar Ativo ao Radar:").upper()
-
-    st.divider()
-    m_cripto = st.multiselect("🪙 Criptos:", ["BTC-USD", "ETH-USD", "SOL-USD"], ["BTC-USD"])
-    m_bdr = st.multiselect("🌎 Internacionais (BDR/ETF):", ["OHI", "JEPP34", "IVVB11"], ["OHI", "JEPP34"])
-    m_acoes = st.multiselect("🇧🇷 Ações Brasil:", ["BBAS3", "TAEE11", "VULC3", "PETR4"], ["BBAS3", "TAEE11"])
-
-    if st.button("🚀 ATIVAR MONITORAMENTO"):
-        st.session_state.run = True
-        enviar_alerta_telegram(token_bot, chat_id, "✅ Terminal InvestSmart Conectado!")
-
-# --- PAINEL PRINCIPAL: ESTILO INVESTIDOR 10 ---
-st.title("🏛️ InvestSmart Pro | Central de Renda e Análise")
-
-def exibir_categoria_premium(titulo, lista):
-    if add_manual and titulo == "🇧🇷 MERCADO BRASILEIRO (AÇÕES)":
-        if add_manual not in lista: lista.append(add_manual)
+    aba = st.tabs(["🏛️ Carteira Renda", "⚡ Swing Trade"])
     
-    if lista:
-        st.subheader(titulo)
-        cols = st.columns(len(lista))
-        for i, t in enumerate(lista):
-            with cols[i]:
-                hist, info, divs = buscar_dados_elite(t)
-                if hist is not None and not hist.empty:
-                    atual = hist['Close'].iloc[-1]
-                    var = ((atual/hist['Open'].iloc[0])-1)*100
-                    
-                    # --- LOGICA DE DIVIDENDOS (Melhorada) ---
-                    # Soma os dividendos do último ano (trailing)
-                    dy_valor = info.get('trailingAnnualDividendRate', 0)
-                    yield_p = info.get('trailingAnnualDividendYield', 0) * 100
-                    preco_justo = (dy_valor / 0.06) if dy_valor > 0 else (atual * 1.10)
+    with aba[0]:
+        st.write("Monitoramento de Longo Prazo")
+        mon_renda = st.multiselect("Seus Ativos:", ["BBAS3", "TAEE11", "JEPP34", "OHI"], ["BBAS3", "OHI"])
+    
+    with aba[1]:
+        st.write("🎯 Foco em Ganho de Capital")
+        ticker_swing = st.text_input("Adicione Ação para Trade (Ex: VULC3, PETR4):", "VULC3").upper()
 
-                    # Card Visual (Fim da cor apagada)
-                    st.metric(f"💎 {t}", f"R$ {atual:,.2f}", f"{var:.2f}%")
-                    
-                    st.write(f"🎯 **Preço Justo:** R$ {preco_justo:,.2f}")
-                    if dy_valor > 0:
-                        st.write(f"📅 **Dividendos (12m):** R$ {dy_valor:,.2f} ({yield_p:.2f}%)")
-                    else:
-                        st.write("📅 **Dividendos:** Empresa de Crescimento")
+# --- ABA 2: MÓDULO SWING TRADE (O QUE VOCÊ PEDIU) ---
+st.title(f"⚡ Painel Swing Trade: {ticker_swing}")
 
-                    # Mentor IA (Foco no Setor e Solidez)
-                    tese = TESES.get(t, f"Ativo do setor de {info.get('sector', 'Mercado Global')}. Produto com base de ativos sólida e histórico em análise.")
-                    st.info(f"**Análise:** {tese}")
-                    
-                    # Alerta Automático
-                    if atual < preco_justo: st.success("✅ OPORTUNIDADE DE COMPRA")
-                    else: st.warning("⏳ AGUARDE VALORIZAÇÃO")
+def buscar_dados_trade(t):
+    try:
+        t_s = f"{t}.SA" if "-" not in t and ".SA" not in t else t
+        ticker = yf.Ticker(t_s)
+        # Swing trade usa gráfico Diário (Daily) para ver a tendência de dias
+        hist = ticker.history(period="60d", interval="1d")
+        return hist, ticker.info
+    except: return None, None
 
-                    # Mini Gráfico de Tendência
-                    fig = go.Figure(data=[go.Scatter(x=hist.index, y=hist['Close'], line=dict(color='#00ff88', width=2))])
-                    fig.update_layout(template='plotly_dark', height=70, margin=dict(l=0,r=0,t=0,b=0), xaxis_visible=False, yaxis_visible=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-                    st.plotly_chart(fig, use_container_width=True, key=f"gr_{t}")
+hist, info = buscar_dados_trade(ticker_swing)
+
+if hist is not None and not hist.empty:
+    # --- INDICADORES DE TRADER PROFISSIONAL ---
+    hist['MA20'] = hist['Close'].rolling(window=20).mean() # Média de 20 dias (Tendência)
+    hist['MA9'] = hist['Close'].rolling(window=9).mean()   # Média de 9 dias (Gatilho)
+    atual = hist['Close'].iloc[-1]
+    anterior = hist['Close'].iloc[-2]
+    vol_atual = hist['Volume'].iloc[-1]
+    vol_medio = hist['Volume'].mean()
+
+    c1, c2 = st.columns([1, 3])
+    
+    with c1:
+        st.metric("Preço de Tela", f"R$ {atual:,.2f}", f"{((atual/anterior)-1)*100:.2f}%")
+        
+        st.subheader("🤖 Mentor Swing Trader")
+        
+        # --- LÓGICA DE ALERTA DE COMPRA/VENDA (GATILHO) ---
+        if hist['MA9'].iloc[-1] > hist['MA20'].iloc[-1] and atual > hist['MA9'].iloc[-1]:
+            status = "🚀 COMPRA (Tendência de Alta Confirmada)"
+            conselho = "As médias cruzaram para cima. Volume está saudável. É um bom momento para buscar lucro nos próximos dias."
+            st.success(status)
+            enviar_alerta(token_bot, chat_id, f"🎯 GATILHO SWING TRADE: Compra em {ticker_swing} a {atual}")
+        elif atual < hist['MA20'].iloc[-1]:
+            status = "⚠️ VENDA / AGUARDE (Tendência de Baixa)"
+            conselho = "O preço perdeu a média de 20 dias. Risco de queda continuada. Proteja seu capital."
+            st.error(status)
+        else:
+            status = "⚖️ NEUTRO (Lateralização)"
+            conselho = "O ativo está "andando de lado". Sem gatilho claro de entrada agora."
+            st.warning(status)
+            
+        st.info(f"**Análise Setorial:** {info.get('longName')} atua no setor de {info.get('sector')}. {conselho}")
+        
         st.divider()
+        st.write(f"📈 **Suporte:** R$ {hist['Low'].tail(10).min():,.2f}")
+        st.write(f"📉 **Resistência:** R$ {hist['High'].tail(10).max():,.2f}")
 
-# Exibição organizada como no exemplo do Investidor10
-exibir_categoria_premium("🪙 MERCADO CRIPTO", m_cripto)
-exibir_categoria_premium("🌎 MERCADO INTERNACIONAL (BDR/REIT/ETF)", m_bdr)
-exibir_categoria_premium("🇧🇷 MERCADO BRASILEIRO (AÇÕES)", m_acoes)
+    with c2:
+        # --- GRÁFICO KANDALL (CANDLESTICKS) DE ALTA DEFINIÇÃO ---
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.8, 0.2], vertical_spacing=0.03)
+        
+        # Velas (Candles)
+        fig.add_trace(go.Candlestick(x=hist.index, open=hist.Open, high=hist.High, low=hist.Low, close=hist.Close, name='Candle'), row=1, col=1)
+        
+        # Médias Móveis (Linhas de Tendência)
+        fig.add_trace(go.Scatter(x=hist.index, y=hist['MA20'], name='Média 20d (Tendência)', line=dict(color='#00ff88', width=2)), row=1, col=1)
+        fig.add_trace(go.Scatter(x=hist.index, y=hist['MA9'], name='Média 9d (Gatilho)', line=dict(color='#ffaa00', width=1.5)), row=1, col=1)
+        
+        # Volume Colorido (Verde/Vermelho)
+        cores_v = ['#00ff88' if hist.Close[i] >= hist.Open[i] else '#ff4b4b' for i in range(len(hist))]
+        fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], marker_color=cores_v, name='Volume'), row=2, col=1)
+        
+        fig.update_layout(template='plotly_dark', xaxis_rangeslider_visible=False, height=650, margin=dict(l=0,r=0,t=0,b=0))
+        st.plotly_chart(fig, use_container_width=True)
 
-time.sleep(60)
-st.rerun()
+    time.sleep(60)
+    st.rerun()
