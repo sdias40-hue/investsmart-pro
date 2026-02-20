@@ -6,8 +6,8 @@ from plotly.subplots import make_subplots
 import requests
 import time
 
-# 1. CSS de Ultra Contraste (Fim das cores transparentes)
-st.set_page_config(page_title="InvestSmart Pro | Swing Trade", layout="wide")
+# 1. Configuração de Ultra Contraste (Fim das cores transparentes)
+st.set_page_config(page_title="InvestSmart Pro | Elite Trader", layout="wide")
 st.markdown("""
     <style>
     .main { background-color: #0d1117; }
@@ -17,7 +17,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Motor de Alerta Trader
+# 2. Motor de Alerta e Teses
 def enviar_alerta(token, chat_id, msg):
     if token and chat_id:
         try:
@@ -25,91 +25,70 @@ def enviar_alerta(token, chat_id, msg):
             requests.post(url, data={"chat_id": chat_id, "text": msg}, timeout=5)
         except: pass
 
+TESES = {
+    "OHI": "🏘️ REIT de Saúde (EUA). Dono de hospitais e asilos. Renda sólida pelo envelhecimento da população.",
+    "BBAS3": "🏦 Banco do Brasil. Foco em Agronegócio. Excelente pagadora de dividendos e muito sólida.",
+    "BTC-USD": "🪙 Bitcoin. O 'Ouro Digital'. Reserva de valor escassa contra a inflação global."
+}
+
 # --- SIDEBAR: COMANDO DO TRADER ---
 with st.sidebar:
-    st.title("🛡️ Área do Trader")
-    token_bot = st.text_input("Token Telegram:", type="password")
-    chat_id = st.text_input("Seu ID:")
+    st.title("🛡️ Centro de Comando")
+    token_bot = st.text_input("Token do seu Bot:", type="password")
+    chat_id = st.text_input("Seu ID de Usuário (8392660003):")
     
     st.divider()
-    aba = st.tabs(["🏛️ Carteira Renda", "⚡ Swing Trade"])
+    modo = st.radio("Escolha o Modo de Operação:", ["🏛️ Carteira de Renda", "⚡ Swing Trade (Gráfico Kandall)"])
+
+# --- MODO 1: CARTEIRA DE RENDA (ESTILO INVESTIDOR 10) ---
+if modo == "🏛️ Carteira de Renda":
+    st.title("🏛️ Central de Renda e Dividendos")
+    col_renda = st.columns(3)
+    ativos = ["BBAS3", "OHI", "JEPP34"]
     
-    with aba[0]:
-        st.write("Monitoramento de Longo Prazo")
-        mon_renda = st.multiselect("Seus Ativos:", ["BBAS3", "TAEE11", "JEPP34", "OHI"], ["BBAS3", "OHI"])
-    
-    with aba[1]:
-        st.write("🎯 Foco em Ganho de Capital")
-        ticker_swing = st.text_input("Adicione Ação para Trade (Ex: VULC3, PETR4):", "VULC3").upper()
-
-# --- ABA 2: MÓDULO SWING TRADE (O QUE VOCÊ PEDIU) ---
-st.title(f"⚡ Painel Swing Trade: {ticker_swing}")
-
-def buscar_dados_trade(t):
-    try:
-        t_s = f"{t}.SA" if "-" not in t and ".SA" not in t else t
-        ticker = yf.Ticker(t_s)
-        # Swing trade usa gráfico Diário (Daily) para ver a tendência de dias
-        hist = ticker.history(period="60d", interval="1d")
-        return hist, ticker.info
-    except: return None, None
-
-hist, info = buscar_dados_trade(ticker_swing)
-
-if hist is not None and not hist.empty:
-    # --- INDICADORES DE TRADER PROFISSIONAL ---
-    hist['MA20'] = hist['Close'].rolling(window=20).mean() # Média de 20 dias (Tendência)
-    hist['MA9'] = hist['Close'].rolling(window=9).mean()   # Média de 9 dias (Gatilho)
-    atual = hist['Close'].iloc[-1]
-    anterior = hist['Close'].iloc[-2]
-    vol_atual = hist['Volume'].iloc[-1]
-    vol_medio = hist['Volume'].mean()
-
-    c1, c2 = st.columns([1, 3])
-    
-    with c1:
-        st.metric("Preço de Tela", f"R$ {atual:,.2f}", f"{((atual/anterior)-1)*100:.2f}%")
-        
-        st.subheader("🤖 Mentor Swing Trader")
-        
-        # --- LÓGICA DE ALERTA DE COMPRA/VENDA (GATILHO) ---
-        if hist['MA9'].iloc[-1] > hist['MA20'].iloc[-1] and atual > hist['MA9'].iloc[-1]:
-            status = "🚀 COMPRA (Tendência de Alta Confirmada)"
-            conselho = "As médias cruzaram para cima. Volume está saudável. É um bom momento para buscar lucro nos próximos dias."
-            st.success(status)
-            enviar_alerta(token_bot, chat_id, f"🎯 GATILHO SWING TRADE: Compra em {ticker_swing} a {atual}")
-        elif atual < hist['MA20'].iloc[-1]:
-            status = "⚠️ VENDA / AGUARDE (Tendência de Baixa)"
-            conselho = "O preço perdeu a média de 20 dias. Risco de queda continuada. Proteja seu capital."
-            st.error(status)
-        else:
-            status = "⚖️ NEUTRO (Lateralização)"
-            conselho = "O ativo está "andando de lado". Sem gatilho claro de entrada agora."
-            st.warning(status)
-            
-        st.info(f"**Análise Setorial:** {info.get('longName')} atua no setor de {info.get('sector')}. {conselho}")
-        
-        st.divider()
-        st.write(f"📈 **Suporte:** R$ {hist['Low'].tail(10).min():,.2f}")
-        st.write(f"📉 **Resistência:** R$ {hist['High'].tail(10).max():,.2f}")
-
-    with c2:
-        # --- GRÁFICO KANDALL (CANDLESTICKS) DE ALTA DEFINIÇÃO ---
-        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.8, 0.2], vertical_spacing=0.03)
-        
-        # Velas (Candles)
-        fig.add_trace(go.Candlestick(x=hist.index, open=hist.Open, high=hist.High, low=hist.Low, close=hist.Close, name='Candle'), row=1, col=1)
-        
-        # Médias Móveis (Linhas de Tendência)
-        fig.add_trace(go.Scatter(x=hist.index, y=hist['MA20'], name='Média 20d (Tendência)', line=dict(color='#00ff88', width=2)), row=1, col=1)
-        fig.add_trace(go.Scatter(x=hist.index, y=hist['MA9'], name='Média 9d (Gatilho)', line=dict(color='#ffaa00', width=1.5)), row=1, col=1)
-        
-        # Volume Colorido (Verde/Vermelho)
-        cores_v = ['#00ff88' if hist.Close[i] >= hist.Open[i] else '#ff4b4b' for i in range(len(hist))]
-        fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], marker_color=cores_v, name='Volume'), row=2, col=1)
-        
-        fig.update_layout(template='plotly_dark', xaxis_rangeslider_visible=False, height=650, margin=dict(l=0,r=0,t=0,b=0))
-        st.plotly_chart(fig, use_container_width=True)
-
-    time.sleep(60)
+    for i, t in enumerate(ativos):
+        with col_renda[i % 3]:
+            ticker = yf.Ticker(f"{t}.SA" if ".SA" not in t and "-" not in t else t)
+            hist = ticker.history(period="5d", interval="1h")
+            if not hist.empty:
+                atual = hist['Close'].iloc[-1]
+                dy = ticker.info.get('trailingAnnualDividendRate', 0)
+                st.metric(f"💰 {t}", f"R$ {atual:,.2f}")
+                st.write(f"📅 **Dividendos/Ano:** R$ {dy:,.2f}")
+                st.info(f"**Mentor:** {TESES.get(t, 'Ativo sólido em monitoramento.')}")
     st.rerun()
+
+# --- MODO 2: SWING TRADE (GRÁFICO KANDALL PROFISSIONAL) ---
+else:
+    st.title("⚡ Terminal Swing Trade | Análise Kandall")
+    ticker_trade = st.text_input("Digite a Ação para Analisar (Ex: PETR4, VULC3, VALE3):", "PETR4").upper()
+    
+    t_s = f"{ticker_trade}.SA" if "-" not in ticker_trade and ".SA" not in ticker_trade else ticker_trade
+    ticker = yf.Ticker(t_s)
+    hist = ticker.history(period="60d", interval="1d") # Gráfico diário para Swing Trade
+    
+    if not hist.empty:
+        # Médias Móveis (Estratégia de Especialista)
+        hist['MA20'] = hist['Close'].rolling(window=20).mean()
+        hist['MA9'] = hist['Close'].rolling(window=9).mean()
+        atual = hist['Close'].iloc[-1]
+        
+        c1, c2 = st.columns([1, 3])
+        with c1:
+            st.metric(ticker_trade, f"R$ {atual:,.2f}")
+            st.subheader("🤖 Mentor Trader")
+            
+            # Lógica de Veredito (Corrigida sem erros de sintaxe)
+            if hist['MA9'].iloc[-1] > hist['MA20'].iloc[-1] and atual > hist['MA9'].iloc[-1]:
+                st.success("🚀 GATILHO DE COMPRA! Tendência de alta confirmada com médias cruzadas.")
+                enviar_alerta(token_bot, chat_id, f"🎯 COMPRA EM {ticker_trade}: Preço {atual}")
+            elif atual < hist['MA20'].iloc[-1]:
+                st.error("⚠️ GATILHO DE VENDA! O preço perdeu a tendência de alta. Proteja o capital.")
+            else:
+                st.warning("⚖️ AGUARDE. O ativo está em consolidação lateral sem tendência definida.")
+
+        with c2:
+            # Gráfico de Candles de Alta Definição
+            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.8, 0.2], vertical_spacing=0.03)
+            fig.add_trace(go.Candlestick(x=hist.index, open=hist.Open, high=hist.High, low=hist.Low, close=hist.Close, name='Kandall'), row=1, col=1)
+            fig.add_trace(go.Scatter
