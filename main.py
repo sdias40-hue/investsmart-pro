@@ -6,11 +6,11 @@ from plotly.subplots import make_subplots
 import requests
 import time
 
-# 1. Configuração de Interface
-st.set_page_config(page_title="InvestSmart Pro | Intelligence", layout="wide")
+# 1. Configuração de Interface Profissional
+st.set_page_config(page_title="InvestSmart Pro | Enterprise", layout="wide")
 st.markdown("<style>.main { background-color: #0e1117; color: white; }</style>", unsafe_allow_html=True)
 
-# 2. Motor Telegram (Sandro, o botão de teste voltou!)
+# 2. Motor de Alerta Universal (Para o seu cliente configurar)
 def enviar_alerta_telegram(token, chat_id, mensagem):
     if token and chat_id:
         try:
@@ -21,7 +21,7 @@ def enviar_alerta_telegram(token, chat_id, mensagem):
         except: return {"ok": False}
     return {"ok": False}
 
-# 3. Busca de Dados e Inteligência de Setor
+# 3. Busca de Dados com Filtro de Erros
 def buscar_dados_hb(t):
     try:
         ticker_search = f"{t}.SA" if "-" not in t and ".SA" not in t else t
@@ -33,92 +33,67 @@ def buscar_dados_hb(t):
         return hist, ticker.info
     except: return None, None
 
-# --- 4. RADAR MASTER ---
+# --- 4. PAINEL DE CONFIGURAÇÃO DO CLIENTE ---
 with st.sidebar:
-    st.header("🔍 Radar Master")
-    aba_mercado = st.radio("Selecione o Mercado:", ["Ações / BDRs", "ETFs", "Criptomoedas"])
+    st.header("🔑 Licença e Configuração")
+    st.info("Insira os dados do seu Bot para receber os sinais de compra/venda.")
+    token_cliente = st.text_input("Token do seu ChatBot:", type="password", help="Pegue no @BotFather")
+    id_cliente = st.text_input("Seu Chat ID:", help="Pegue no @userinfobot")
     
-    # Listas atualizadas incluindo ETFs
-    if aba_mercado == "Ações / BDRs":
-        opcoes = ["BBAS3", "TAEE11", "VULC3", "PETR4", "VALE3", "A1IV34"]
-    elif aba_mercado == "ETFs":
-        opcoes = ["JEPP34", "IVVB11", "BOVA11", "SMAL11", "DIVO11"]
-    else:
-        opcoes = ["BTC-USD", "ETH-USD", "SOL-USD"]
-        
-    escolha = st.selectbox("Principais Oportunidades:", [""] + opcoes)
-    ticker_manual = st.text_input("Digite o Ticker:", "").upper()
-    ticker_final = ticker_manual if ticker_manual else escolha
+    if st.button("🚀 Ativar e Testar Robô"):
+        res = enviar_alerta_telegram(token_cliente, id_cliente, "✅ Sistema InvestSmart Pro Ativado! Monitorando mercado...")
+        if res.get("ok"): st.success("Conexão com seu Bot OK!")
+        else: st.error("Falha na conexão. Verifique Token/ID.")
 
     st.divider()
-    st.header("🔔 Alertas & Teste")
-    token_tg = st.text_input("Token Completo:", type="password")
-    id_tg = st.text_input("Seu Chat ID (8392660003):")
-    if st.button("🚀 Testar Comunicação"):
-        res = enviar_alerta_telegram(token_tg, id_tg, f"✅ Teste de Conexão: OK!")
-        if res.get("ok"): st.success("Telegram OK!")
-        else: st.error("Erro no Token/ID.")
+    st.header("🔍 Radar de Ativos")
+    aba_mercado = st.radio("Mercado:", ["Ações", "ETFs / BDRs", "Criptos"])
+    opcoes = ["PETR4", "VALE3", "BBAS3"] if aba_mercado == "Ações" else ["JEPP34", "BOVA11", "IVVB11"]
+    if aba_mercado == "Criptos": opcoes = ["BTC-USD", "ETH-USD", "SOL-USD"]
+    
+    ticker_final = st.text_input("Ticker Manual:", "").upper() or st.selectbox("Principais:", [""] + opcoes)
 
-    st.divider()
-    refresh_rate = st.slider("Atualizar a cada (seg):", 10, 60, 30)
-
-# --- 5. PAINEL HOME BROKER (Visual Profissional) ---
+# --- 5. ANALISADOR ESTRATÉGICO ---
 if ticker_final:
     hist, info = buscar_dados_hb(ticker_final)
     
     if hist is not None and not hist.empty:
+        # Correção do erro: Cálculo seguro da média
+        hist['EMA9'] = hist['Close'].ewm(span=9, adjust=False).mean()
         atual = hist['Close'].iloc[-1]
         res = hist['High'].max()
         sup = hist['Low'].min()
-        setor = info.get('sector', 'ETF / Ativo Internacional')
-        ramo = info.get('industry', 'Gestão de Ativos')
         
-        # Cálculo Simples de Preço Justo (Baseado em Yield Desejado de 6%)
-        dy_estimado = info.get('trailingAnnualDividendYield', 0)
-        preco_justo = (info.get('trailingAnnualDividendRate', 0) / 0.06) if dy_estimado > 0 else (atual * 1.15)
-
-        st.title(f"📈 {info.get('longName', ticker_final)} | {setor}")
+        st.title(f"🏛️ Terminal {ticker_final} | {info.get('sector', 'Ativo Global')}")
         
-        c1, c2 = st.columns([1, 3])
+        c1, c2 = st.columns([1, 2.8])
         with c1:
-            st.metric("Preço Atual", f"R$ {atual:,.2f}", f"{((atual/hist.Open.iloc[0])-1)*100:.2f}%")
-            st.write(f"**Preço Justo Est.:** R$ {preco_justo:,.2f}")
+            st.metric("Preço", f"R$ {atual:,.2f}" if "-" not in ticker_final else f"US$ {atual:,.2f}")
+            st.subheader("🤖 Mentor IA")
             
-            st.subheader("🤖 Mentor IA | Análise Setorial")
-            
-            # --- ANALISE DO MENTOR MELHORADA (O que você pediu) ---
-            analise_futura = ""
-            if atual < preco_justo:
-                analise_futura = "O ativo está abaixo do valor intrínseco. No longo prazo, a tendência é de valorização buscando o preço justo."
+            # Lógica de Veredito Setorial
+            ramo = info.get('industry', 'Investimentos')
+            if atual >= res * 0.999:
+                st.success(f"🔥 COMPRA! Rompimento no setor de {ramo}.")
+                enviar_alerta_telegram(token_cliente, id_cliente, f"🚨 SINAL DE COMPRA: {ticker_final} rompendo resistência em {atual}!")
+            elif atual <= sup * 1.001:
+                st.error("📉 QUEDA! Risco alto, evite compra agora.")
             else:
-                analise_futura = "O preço está esticado. Risco de correção no curto prazo para buscar as médias."
-
-            msg_mentor = f"""
-            Sandro, este ativo pertence ao ramo de **{ramo}**. 
-            
-            **Fatores de Risco/Oportunidade:** Atualmente o volume indica {'acumulação' if atual > sup else 'distribuição'}. 
-            
-            **Perspectiva:** {analise_futura} Devido ao cenário de juros e o setor de {setor}, o ativo pode {'subir' if atual > hist.EMA9.iloc[-1] else 'corrigir'} nos próximos minutos.
-            """
-            
-            st.info(msg_mentor)
-            
-            if atual >= res:
-                st.success("🔥 PONTO DE COMPRA: Rompimento com Volume!")
-                enviar_alerta_telegram(token_tg, id_tg, f"🚨 ALERTA COMPRA: {ticker_final} em {atual}. Setor: {setor}")
+                st.info(f"O ativo de {ramo} está em zona neutra. Aguarde sinal de volume.")
 
         with c2:
+            # Gráfico de Alta Definição (Criptos Nítidas)
             fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.75, 0.25], vertical_spacing=0.03)
             fig.add_trace(go.Candlestick(x=hist.index, open=hist.Open, high=hist.High, low=hist.Low, close=hist.Close, name='1m'), row=1, col=1)
+            fig.add_trace(go.Scatter(x=hist.index, y=hist['EMA9'], name='Média', line=dict(color='#ffaa00', width=1)), row=1, col=1)
             
-            cores_vol = ['#26a69a' if hist.Close[i] >= hist.Open[i] else '#ef5350' for i in range(len(hist))]
-            fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], name='Volume', marker_color=cores_vol), row=2, col=1)
+            # Volume Colorido
+            cv = ['#26a69a' if hist.Close[i] >= hist.Open[i] else '#ef5350' for i in range(len(hist))]
+            fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], marker_color=cv, name='Vol'), row=2, col=1)
             
-            fig.add_hline(y=res, line_dash="dot", line_color="#ef5350", annotation_text="RESISTÊNCIA", row=1, col=1)
-            fig.add_hline(y=sup, line_dash="dot", line_color="#26a69a", annotation_text="SUPORTE", row=1, col=1)
-            
-            fig.update_layout(template='plotly_dark', xaxis_rangeslider_visible=False, height=600, margin=dict(l=0,r=0,t=0,b=0))
+            fig.update_layout(template='plotly_dark', xaxis_rangeslider_visible=False, height=550, margin=dict(l=0,r=0,t=0,b=0))
+            fig.update_yaxes(autorange=True, fixedrange=False, row=1, col=1)
             st.plotly_chart(fig, use_container_width=True)
 
-        time.sleep(refresh_rate)
+        time.sleep(30)
         st.rerun()
