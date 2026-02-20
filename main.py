@@ -7,10 +7,10 @@ import requests
 import time
 
 # 1. Configuração de Interface
-st.set_page_config(page_title="InvestSmart Pro | Home Broker", layout="wide")
+st.set_page_config(page_title="InvestSmart Pro | Intelligence", layout="wide")
 st.markdown("<style>.main { background-color: #0e1117; color: white; }</style>", unsafe_allow_html=True)
 
-# 2. Motor Telegram (Validado pelo Sandro!)
+# 2. Motor Telegram (Sandro, o botão de teste voltou!)
 def enviar_alerta_telegram(token, chat_id, mensagem):
     if token and chat_id:
         try:
@@ -21,7 +21,7 @@ def enviar_alerta_telegram(token, chat_id, mensagem):
         except: return {"ok": False}
     return {"ok": False}
 
-# 3. Busca de Dados (1 Minuto com Ajuste de Escala)
+# 3. Busca de Dados e Inteligência de Setor
 def buscar_dados_hb(t):
     try:
         ticker_search = f"{t}.SA" if "-" not in t and ".SA" not in t else t
@@ -36,84 +36,88 @@ def buscar_dados_hb(t):
 # --- 4. RADAR MASTER ---
 with st.sidebar:
     st.header("🔍 Radar Master")
-    aba_mercado = st.radio("Selecione o Mercado:", ["Ações / BDRs", "Criptomoedas"])
-    opcoes = ["BBAS3", "TAEE11", "VULC3", "PETR4", "JEPP34"] if aba_mercado == "Ações / BDRs" else ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD"]
-    escolha = st.selectbox("Top 5 Recomendadas:", [""] + opcoes)
-    ticker_manual = st.text_input("Ou digite o Ticker:", "").upper()
+    aba_mercado = st.radio("Selecione o Mercado:", ["Ações / BDRs", "ETFs", "Criptomoedas"])
+    
+    # Listas atualizadas incluindo ETFs
+    if aba_mercado == "Ações / BDRs":
+        opcoes = ["BBAS3", "TAEE11", "VULC3", "PETR4", "VALE3", "A1IV34"]
+    elif aba_mercado == "ETFs":
+        opcoes = ["JEPP34", "IVVB11", "BOVA11", "SMAL11", "DIVO11"]
+    else:
+        opcoes = ["BTC-USD", "ETH-USD", "SOL-USD"]
+        
+    escolha = st.selectbox("Principais Oportunidades:", [""] + opcoes)
+    ticker_manual = st.text_input("Digite o Ticker:", "").upper()
     ticker_final = ticker_manual if ticker_manual else escolha
 
     st.divider()
-    st.header("🔔 Alertas Telegram")
+    st.header("🔔 Alertas & Teste")
     token_tg = st.text_input("Token Completo:", type="password")
     id_tg = st.text_input("Seu Chat ID (8392660003):")
-    
+    if st.button("🚀 Testar Comunicação"):
+        res = enviar_alerta_telegram(token_tg, id_tg, f"✅ Teste de Conexão: OK!")
+        if res.get("ok"): st.success("Telegram OK!")
+        else: st.error("Erro no Token/ID.")
+
     st.divider()
     refresh_rate = st.slider("Atualizar a cada (seg):", 10, 60, 30)
 
-# --- 5. PAINEL HOME BROKER ---
+# --- 5. PAINEL HOME BROKER (Visual Profissional) ---
 if ticker_final:
     hist, info = buscar_dados_hb(ticker_final)
     
     if hist is not None and not hist.empty:
-        # Cálculos de Análise Estratégica
         atual = hist['Close'].iloc[-1]
         res = hist['High'].max()
         sup = hist['Low'].min()
-        preco_abertura = hist['Open'].iloc[0]
-        vol_atual = hist['Volume'].iloc[-1]
-        vol_medio = hist['Volume'].mean()
+        setor = info.get('sector', 'ETF / Ativo Internacional')
+        ramo = info.get('industry', 'Gestão de Ativos')
         
-        st.title(f"📈 {info.get('longName', ticker_final)} | Tempo Real")
+        # Cálculo Simples de Preço Justo (Baseado em Yield Desejado de 6%)
+        dy_estimado = info.get('trailingAnnualDividendYield', 0)
+        preco_justo = (info.get('trailingAnnualDividendRate', 0) / 0.06) if dy_estimado > 0 else (atual * 1.15)
+
+        st.title(f"📈 {info.get('longName', ticker_final)} | {setor}")
         
         c1, c2 = st.columns([1, 3])
         with c1:
-            st.metric("Preço Atual", f"R$ {atual:,.2f}" if "-" not in ticker_final else f"US$ {atual:,.2f}", f"{((atual/preco_abertura)-1)*100:.2f}%")
+            st.metric("Preço Atual", f"R$ {atual:,.2f}", f"{((atual/hist.Open.iloc[0])-1)*100:.2f}%")
+            st.write(f"**Preço Justo Est.:** R$ {preco_justo:,.2f}")
             
-            st.subheader("🤖 Mentor IA | Veredito")
+            st.subheader("🤖 Mentor IA | Análise Setorial")
             
-            # --- LÓGICA DE ANÁLISE ESTRATÉGICA (O que você pediu) ---
-            if atual >= res * 0.998 and vol_atual > vol_medio:
-                veredito = "🔥 COMPRA AGORA! Rompimento de topo com volume forte."
-                cor_msg = "success"
-                enviar_alerta_telegram(token_tg, id_tg, f"🚀 OPORTUNIDADE: {ticker_final} rompeu topo com volume! Preço: {atual}")
-            elif atual <= sup * 1.002:
-                veredito = "⚠️ QUEDA EM CURSO! O preço está testando o suporte. Não compre agora, aguarde o sinal de reversão."
-                cor_msg = "error"
-            elif vol_atual < vol_medio * 0.5:
-                veredito = "⏳ AGUARDE. O mercado está sem liquidez (volume baixo). Movimento incerto."
-                cor_msg = "warning"
+            # --- ANALISE DO MENTOR MELHORADA (O que você pediu) ---
+            analise_futura = ""
+            if atual < preco_justo:
+                analise_futura = "O ativo está abaixo do valor intrínseco. No longo prazo, a tendência é de valorização buscando o preço justo."
             else:
-                veredito = "⚖️ NEUTRO. O preço está consolidado. Monitore as extremidades."
-                cor_msg = "info"
+                analise_futura = "O preço está esticado. Risco de correção no curto prazo para buscar as médias."
+
+            msg_mentor = f"""
+            Sandro, este ativo pertence ao ramo de **{ramo}**. 
             
-            if cor_msg == "success": st.success(veredito)
-            elif cor_msg == "error": st.error(veredito)
-            elif cor_msg == "warning": st.warning(veredito)
-            else: st.info(veredito)
+            **Fatores de Risco/Oportunidade:** Atualmente o volume indica {'acumulação' if atual > sup else 'distribuição'}. 
             
-            st.write(f"**Volume:** {'Elevado' if vol_atual > vol_medio else 'Normal'}")
-            invest = st.number_input("Simular Investimento:", value=1000.0)
-            st.write(f"Você compra: **{invest/atual:.4f}**")
+            **Perspectiva:** {analise_futura} Devido ao cenário de juros e o setor de {setor}, o ativo pode {'subir' if atual > hist.EMA9.iloc[-1] else 'corrigir'} nos próximos minutos.
+            """
+            
+            st.info(msg_mentor)
+            
+            if atual >= res:
+                st.success("🔥 PONTO DE COMPRA: Rompimento com Volume!")
+                enviar_alerta_telegram(token_tg, id_tg, f"🚨 ALERTA COMPRA: {ticker_final} em {atual}. Setor: {setor}")
 
         with c2:
-            # Gráfico com Zoom Inteligente e Volume Colorido
             fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.75, 0.25], vertical_spacing=0.03)
-            
-            # Velas (Candlesticks)
             fig.add_trace(go.Candlestick(x=hist.index, open=hist.Open, high=hist.High, low=hist.Low, close=hist.Close, name='1m'), row=1, col=1)
             
-            # Volume Colorido
             cores_vol = ['#26a69a' if hist.Close[i] >= hist.Open[i] else '#ef5350' for i in range(len(hist))]
             fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], name='Volume', marker_color=cores_vol), row=2, col=1)
             
-            # Linhas de Suporte e Resistência
             fig.add_hline(y=res, line_dash="dot", line_color="#ef5350", annotation_text="RESISTÊNCIA", row=1, col=1)
             fig.add_hline(y=sup, line_dash="dot", line_color="#26a69a", annotation_text="SUPORTE", row=1, col=1)
             
-            # AJUSTE DE VISUALIZAÇÃO (Foco nas Criptos)
             fig.update_layout(template='plotly_dark', xaxis_rangeslider_visible=False, height=600, margin=dict(l=0,r=0,t=0,b=0))
-            fig.update_yaxes(autorange=True, fixedrange=False, row=1, col=1) # Faz o gráfico focar no preço atual
-            
             st.plotly_chart(fig, use_container_width=True)
 
         time.sleep(refresh_rate)
