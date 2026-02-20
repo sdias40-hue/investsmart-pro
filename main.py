@@ -5,139 +5,129 @@ import plotly.graph_objects as go
 import requests
 import time
 
-# 1. Configuração de Interface (image_df2bc5.jpg)
-st.set_page_config(page_title="InvestSmart Pro | Elite", layout="wide")
+# 1. Configuração de Interface High Clarity (image_df2bc5.jpg)
+st.set_page_config(page_title="InvestSmart Pro | Trade Master", layout="wide")
 st.markdown("<style>.main { background-color: #f8f9fa; }</style>", unsafe_allow_html=True)
 
-# 2. Funções de Inteligência Corrigidas
-def enviar_alerta(token, chat_id, msg):
-    if token and chat_id:
-        try:
-            url = f"https://api.telegram.org/bot{token}/sendMessage"
-            requests.post(url, data={"chat_id": chat_id, "text": msg}, timeout=5)
-        except: pass
+# 2. Motor de Inteligência para Day Trade e Dividendos
+def analisar_trade(df, info, is_c):
+    try:
+        p_agora = df['Close'].iloc[-1]
+        p_min = df['Low'].rolling(14).min().iloc[-1]
+        p_max = df['High'].rolling(14).max().iloc[-1]
+        
+        # Análise de Dividendos (image_31d3a8.png)
+        div_raw = info.get('dividendYield', 0)
+        div = (div_raw * 100) if (div_raw and div_raw < 1) else (div_raw if div_raw else 0)
+        
+        # Mentor Especialista em Day Trade
+        msg = f"📍 Suporte em {p_min:,.2f} | 🚩 Resistência em {p_max:,.2f}. "
+        if p_agora <= p_min * 1.02:
+            msg += "🔥 OPORTUNIDADE: Preço próximo ao suporte (ZONA DE COMPRA)."
+        elif p_agora >= p_max * 0.98:
+            msg += "⚠️ ALERTA: Preço próximo à resistência (ZONA DE VENDA)."
+        else:
+            msg += "⚖️ Ativo em zona neutra de negociação."
+            
+        if not is_c:
+            msg += f" | 💰 Dividendos: {div:.2f}%."
+            
+        return msg, p_min, p_max
+    except: return "Aguardando sinal técnico...", 0, 0
 
-@st.cache_data(ttl=60)
-def buscar_analise_v111(t):
+@st.cache_data(ttl=30)
+def buscar_v120(t):
     try:
         t_up = t.upper().strip()
         is_c = t_up in ["BTC", "XRP", "ETH", "SOL"]
         search = f"{t_up}-USD" if is_c else (f"{t_up}.SA" if "." not in t_up else t_up)
         tk = yf.Ticker(search)
-        info = tk.info
-        hist = tk.history(period="60d", interval="1d")
+        h = tk.history(period="60d", interval="1d")
         usd_brl = yf.Ticker("BRL=X").history(period="1d")['Close'].iloc[-1]
-        
-        # CORREÇÃO DIVIDENDOS (image_31d3a8.png): Escala de % corrigida
-        div_raw = info.get('dividendYield', 0)
-        # Se o valor vier como decimal (0.05) vira 5%, se vier como 5 vira 5%
-        div = (div_raw * 100) if (div_raw and div_raw < 1) else (div_raw if div_raw else 0)
-        
-        mentor_msg = f"📊 Analisando {t_up}: "
-        if is_c:
-            mentor_msg += "Forte volatilidade. O Mentor recomenda cautela no gerenciamento de risco."
-        else:
-            mentor_msg += f"Dividendos estimados em {div:.2f}%. "
-            mentor_msg += "Ação com ótimo perfil de renda passiva." if div > 5 else "Foco em valorização de capital."
-            
-        return hist, mentor_msg, usd_brl, is_c
-    except: return None, "Buscando dados...", 5.65, False
+        return h, tk.info, usd_brl, is_c
+    except: return None, None, 5.65, False
 
 # --- INICIALIZAÇÃO DE MEMÓRIA ---
 if 'radar' not in st.session_state: st.session_state.radar = {}
 
-# --- SIDEBAR: CONTROLE TOTAL (image_31d45b.png) ---
+# --- SIDEBAR: CONSULTA E TRADE ---
 with st.sidebar:
-    st.title("🛡️ Central de Comando")
+    st.title("🛡️ Trade Master Pro")
     tk = st.text_input("Token Telegram:", type="password")
     cid = st.text_input("Seu ID:", value="8392660003")
     
     st.divider()
-    st.subheader("🔍 Monitorar Novo Ativo")
+    st.subheader("🚀 Novo Trade (Day/Swing)")
     
-    # RESOLUÇÃO DO ENTER (image_31d45b.png): Chaves dinâmicas com verificação de estado
-    t_in = st.text_input("Ticker (Ex: VULC3 ou BTC):", key="f_t").upper().strip()
-    is_c = t_in in ["BTC", "XRP", "ETH", "SOL"]
-    
-    if is_c:
-        v_inv = st.number_input("Valor Investido (R$):", key="f_v", min_value=0.0)
-        p_ent = st.number_input("Preço Compra (US$):", key="f_pc", min_value=0.0)
-        p_alv = st.number_input("Alvo Venda (US$):", key="f_pa", min_value=0.0)
-        qtd_a = 0
-    else:
-        p_ent = st.number_input("Preço Compra (R$):", key="f_pca", min_value=0.0)
-        qtd_a = st.number_input("Quantidade de Ações:", key="f_q", min_value=0, step=1)
-        p_alv = st.number_input("Alvo Venda (R$):", key="f_paa", min_value=0.0)
-        v_inv = p_ent * qtd_a
-
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("🚀 Monitorar"):
+    with st.form("trade_form", clear_on_submit=True):
+        t_in = st.text_input("Ticker:").upper().strip()
+        p_compra = st.number_input("Preço de Entrada:", min_value=0.0)
+        p_venda = st.number_input("Alvo (Gain):", min_value=0.0)
+        
+        # Ajuste inteligente: Quantidade para Ações, Valor para Cripto
+        if t_in in ["BTC", "XRP", "ETH", "SOL"]:
+            valor = st.number_input("Investido (R$):", min_value=0.0)
+            qtd = 0
+        else:
+            qtd = st.number_input("Quantidade:", min_value=0, step=1)
+            valor = p_compra * qtd
+            
+        if st.form_submit_button("✅ Iniciar Monitoramento"):
             if t_in:
                 st.session_state.radar[t_in] = {
-                    "is_c": is_c, "v_brl": v_inv, "p_in": p_ent, "alvo": p_alv, "qtd": qtd_a
+                    "p_in": p_compra, "alvo": p_venda, "v_brl": valor, "qtd": qtd, "is_c": t_in in ["BTC", "XRP", "ETH", "SOL"]
                 }
                 st.rerun()
-    with c2:
-        if st.button("🧹 Limpar Campos"):
-            # RESOLUÇÃO DO ERRO API (image_31d080.png): Reset de campos seguro
-            for k in ["f_t", "f_v", "f_pc", "f_pa", "f_pca", "f_q", "f_paa"]:
-                if k in st.session_state:
-                    st.session_state[k] = "" if k == "f_t" else 0.0
-            st.rerun()
 
-    st.divider()
-    st.subheader("📋 Mensagens Ativas")
-    for t_list in list(st.session_state.radar.keys()):
-        st.write(f"🟢 {t_list}")
-    
-    if st.button("🗑️ Limpar Monitoramento"):
+    if st.button("🧹 Limpar Lista de Trades"):
         st.session_state.radar = {}
         st.rerun()
 
 # --- PAINEL PRINCIPAL ---
-st.title("🏛️ InvestSmart Pro | Gestão de Lucro Real")
+st.title("🏛️ InvestSmart Pro | Terminal de Alta Performance")
 
 if not st.session_state.radar:
-    st.info("Aguardando ativos. Configure na lateral para iniciar o vigia.")
+    st.info("Terminal pronto para Day Trade. Configure sua entrada na lateral.")
 else:
-    for t_at in list(st.session_state.radar.keys()):
-        cfg = st.session_state.radar[t_at]
-        h, mentor_txt, dolar, is_c = buscar_analise_v111(t_at)
+    for t, cfg in list(st.session_state.radar.items()):
+        h, info, dolar, is_c = buscar_v120(t)
         
         if h is not None and not h.empty:
             p_agora = h['Close'].iloc[-1]
             taxa = dolar if is_c else 1.0
-            moeda = "US$" if is_c else "R$"
             
-            # Calculadora de Lucro (image_315fe4.png)
-            u_totais = cfg["v_brl"] / (cfg["p_in"] * taxa) if is_c and cfg["p_in"] > 0 else cfg["qtd"]
+            # Cálculo de Lucro Day Trade (image_25fe79.png)
+            u_totais = cfg["v_brl"] / (cfg["p_in"] * taxa) if is_c else cfg["qtd"]
             v_inv_brl = cfg["v_brl"] if is_c else (cfg["p_in"] * cfg["qtd"])
-            v_atual_brl = u_totais * (p_agora * taxa)
-            lucro_brl = v_atual_brl - v_inv_brl
+            v_agora_brl = u_totais * (p_agora * taxa)
+            lucro_brl = v_agora_brl - v_inv_brl
             
-            with st.expander(f"📊 MONITORANDO: {t_at}", expanded=True):
-                col1, col2, col3 = st.columns([1, 1, 2])
-                with col1:
-                    st.metric(f"Preço {moeda}", f"{p_agora:,.2f}")
-                    if st.button(f"Encerrar {t_at}", key=f"stop_{t_at}"):
-                        del st.session_state.radar[t_at]
+            msg_mentor, sup, res = analisar_trade(h, info, is_c)
+            
+            with st.expander(f"📉 TRADE ATIVO: {t}", expanded=True):
+                c1, c2, c3 = st.columns([1, 1, 2])
+                with c1:
+                    st.metric(f"Preço {'US$' if is_c else 'R$'}", f"{p_agora:,.2f}")
+                    if st.button(f"Encerrar {t}", key=f"stop_{t}"):
+                        del st.session_state.radar[t]
                         st.rerun()
-                with col2:
-                    st.metric("Lucro (R$)", f"R$ {lucro_brl:,.2f}", f"{((p_agora/cfg['p_in'])-1)*100:.2f}%" if cfg['p_in'] > 0 else "0%")
-                with col3:
-                    st.subheader("🤖 Mentor Analista")
-                    st.info(mentor_txt)
+                with c2:
+                    st.metric("Resultado (R$)", f"R$ {lucro_brl:,.2f}", f"{((p_agora/cfg['p_in'])-1)*100:.2f}%" if cfg['p_in'] > 0 else "0%")
+                with c3:
+                    st.subheader("🤖 Robo Especialista")
+                    st.info(msg_mentor)
                     if cfg['alvo'] > 0:
-                        v_no_alvo = u_totais * (cfg['alvo'] * taxa)
-                        st.success(f"🎯 Alvo {moeda} {cfg['alvo']:,.2f} = Lucro R$ {v_no_alvo - v_inv_brl:,.2f}")
+                        lucro_alvo = (u_totais * (cfg['alvo'] * taxa)) - v_inv_brl
+                        st.success(f"🎯 Meta de Lucro: R$ {lucro_alvo:,.2f}")
                         if p_agora >= cfg['alvo']:
-                            st.warning("🚨 ALVO ATINGIDO!")
-                            enviar_alerta(tk, cid, f"💰 VENDA: {t_at} atingiu o alvo! Lucro: R$ {lucro_brl:,.2f}")
+                            st.warning("🚨 META ATINGIDA! HORA DE REALIZAR O DAY TRADE!")
 
+                # Gráfico com Suporte e Resistência (Kandall)
                 fig = go.Figure(data=[go.Candlestick(x=h.index, open=h.Open, high=h.High, low=h.Low, close=h.Close)])
-                fig.update_layout(height=300, template='plotly_white', xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
-                st.plotly_chart(fig, use_container_width=True, key=f"v111_{t_at}")
+                fig.add_hline(y=sup, line_dash="dot", line_color="green", annotation_text="Suporte")
+                fig.add_hline(y=res, line_dash="dot", line_color="red", annotation_text="Resistência")
+                fig.update_layout(height=400, template='plotly_white', xaxis_rangeslider_visible=False)
+                st.plotly_chart(fig, use_container_width=True, key=f"gr_{t}")
         st.divider()
 
 time.sleep(30)
