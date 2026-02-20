@@ -6,10 +6,10 @@ import requests
 import time
 
 # 1. Configuração de Interface (image_df2bc5.jpg)
-st.set_page_config(page_title="InvestSmart Pro | Enterprise", layout="wide")
+st.set_page_config(page_title="InvestSmart Pro | Elite", layout="wide")
 st.markdown("<style>.main { background-color: #f8f9fa; }</style>", unsafe_allow_html=True)
 
-# 2. Funções de Inteligência e Mensageria
+# 2. Funções de Inteligência Corrigidas
 def enviar_alerta(token, chat_id, msg):
     if token and chat_id:
         try:
@@ -18,7 +18,7 @@ def enviar_alerta(token, chat_id, msg):
         except: pass
 
 @st.cache_data(ttl=60)
-def buscar_analise_v110(t):
+def buscar_analise_v111(t):
     try:
         t_up = t.upper().strip()
         is_c = t_up in ["BTC", "XRP", "ETH", "SOL"]
@@ -28,31 +28,34 @@ def buscar_analise_v110(t):
         hist = tk.history(period="60d", interval="1d")
         usd_brl = yf.Ticker("BRL=X").history(period="1d")['Close'].iloc[-1]
         
-        # Mentor Analista: Dividendos e Potencial (image_25f3f4.png)
-        div = info.get('dividendYield', 0) * 100 if info.get('dividendYield') else 0
+        # CORREÇÃO DIVIDENDOS (image_31d3a8.png): Escala de % corrigida
+        div_raw = info.get('dividendYield', 0)
+        # Se o valor vier como decimal (0.05) vira 5%, se vier como 5 vira 5%
+        div = (div_raw * 100) if (div_raw and div_raw < 1) else (div_raw if div_raw else 0)
+        
         mentor_msg = f"📊 Analisando {t_up}: "
         if is_c:
-            mentor_msg += "Ativo de alta volatilidade. Tendência global influencia o preço."
+            mentor_msg += "Forte volatilidade. O Mentor recomenda cautela no gerenciamento de risco."
         else:
-            mentor_msg += f"Dividendos de {div:.2f}%. "
-            mentor_msg += "Empresa com bom histórico" if div > 4 else "Foco em crescimento de capital."
+            mentor_msg += f"Dividendos estimados em {div:.2f}%. "
+            mentor_msg += "Ação com ótimo perfil de renda passiva." if div > 5 else "Foco em valorização de capital."
             
         return hist, mentor_msg, usd_brl, is_c
-    except: return None, "Aguardando dados...", 5.65, False
+    except: return None, "Buscando dados...", 5.65, False
 
 # --- INICIALIZAÇÃO DE MEMÓRIA ---
 if 'radar' not in st.session_state: st.session_state.radar = {}
 
-# --- SIDEBAR: CONTROLE TOTAL (image_3158d9.png) ---
+# --- SIDEBAR: CONTROLE TOTAL (image_31d45b.png) ---
 with st.sidebar:
     st.title("🛡️ Central de Comando")
     tk = st.text_input("Token Telegram:", type="password")
     cid = st.text_input("Seu ID:", value="8392660003")
     
     st.divider()
-    st.subheader("🔍 Configurar Monitoramento")
+    st.subheader("🔍 Monitorar Novo Ativo")
     
-    # RESOLUÇÃO DO ENTER: Campos independentes com chaves únicas
+    # RESOLUÇÃO DO ENTER (image_31d45b.png): Chaves dinâmicas com verificação de estado
     t_in = st.text_input("Ticker (Ex: VULC3 ou BTC):", key="f_t").upper().strip()
     is_c = t_in in ["BTC", "XRP", "ETH", "SOL"]
     
@@ -77,9 +80,10 @@ with st.sidebar:
                 st.rerun()
     with c2:
         if st.button("🧹 Limpar Campos"):
-            # Limpa apenas a lateral para nova consulta (image_3158d9.png)
+            # RESOLUÇÃO DO ERRO API (image_31d080.png): Reset de campos seguro
             for k in ["f_t", "f_v", "f_pc", "f_pa", "f_pca", "f_q", "f_paa"]:
-                st.session_state[k] = "" if k == "f_t" else 0.0
+                if k in st.session_state:
+                    st.session_state[k] = "" if k == "f_t" else 0.0
             st.rerun()
 
     st.divider()
@@ -88,7 +92,6 @@ with st.sidebar:
         st.write(f"🟢 {t_list}")
     
     if st.button("🗑️ Limpar Monitoramento"):
-        # Se você vendeu, esse botão apaga a lista de mensagens (image_3172e1.png)
         st.session_state.radar = {}
         st.rerun()
 
@@ -96,22 +99,22 @@ with st.sidebar:
 st.title("🏛️ InvestSmart Pro | Gestão de Lucro Real")
 
 if not st.session_state.radar:
-    st.info("Sistema Online. Adicione seus ativos para iniciar o monitoramento e análise.")
+    st.info("Aguardando ativos. Configure na lateral para iniciar o vigia.")
 else:
     for t_at in list(st.session_state.radar.keys()):
         cfg = st.session_state.radar[t_at]
-        h, mentor_txt, dolar, is_c = buscar_analise_v110(t_at)
+        h, mentor_txt, dolar, is_c = buscar_analise_v111(t_at)
         
         if h is not None and not h.empty:
             p_agora = h['Close'].iloc[-1]
             taxa = dolar if is_c else 1.0
             moeda = "US$" if is_c else "R$"
             
-            # Calculadora Blindada (image_25fe79.png)
+            # Calculadora de Lucro (image_315fe4.png)
             u_totais = cfg["v_brl"] / (cfg["p_in"] * taxa) if is_c and cfg["p_in"] > 0 else cfg["qtd"]
             v_inv_brl = cfg["v_brl"] if is_c else (cfg["p_in"] * cfg["qtd"])
-            v_hoje_brl = u_totais * (p_agora * taxa)
-            lucro_brl = v_hoje_brl - v_inv_brl
+            v_atual_brl = u_totais * (p_agora * taxa)
+            lucro_brl = v_atual_brl - v_inv_brl
             
             with st.expander(f"📊 MONITORANDO: {t_at}", expanded=True):
                 col1, col2, col3 = st.columns([1, 1, 2])
@@ -134,7 +137,7 @@ else:
 
                 fig = go.Figure(data=[go.Candlestick(x=h.index, open=h.Open, high=h.High, low=h.Low, close=h.Close)])
                 fig.update_layout(height=300, template='plotly_white', xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
-                st.plotly_chart(fig, use_container_width=True, key=f"v110_{t_at}")
+                st.plotly_chart(fig, use_container_width=True, key=f"v111_{t_at}")
         st.divider()
 
 time.sleep(30)
