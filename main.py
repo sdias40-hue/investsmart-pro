@@ -2,105 +2,98 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import requests
 import time
 
-# 1. Configuração de Interface Enterprise
-st.set_page_config(page_title="InvestSmart Pro | Multi-Monitor", layout="wide")
+# 1. Configuração de Interface Limpa
+st.set_page_config(page_title="InvestSmart Pro | Prateleira", layout="wide")
 st.markdown("<style>.main { background-color: #0e1117; color: white; }</style>", unsafe_allow_html=True)
 
-# 2. Motor de Alerta Telegram
+# 2. Motor de Alerta
 def enviar_alerta_telegram(token, chat_id, mensagem):
     if token and chat_id:
         try:
             url = f"https://api.telegram.org/bot{token}/sendMessage"
-            data = {"chat_id": chat_id, "text": mensagem}
-            requests.post(url, data=data)
+            requests.post(url, data={"chat_id": chat_id, "text": mensagem})
         except: pass
 
-# 3. Dicionário de Teses (Para Leigos)
+# 3. Dicionário de Teses (Base de Conhecimento para o Cliente)
 TESES = {
-    "OHI": "Setor de Saúde (EUA). Investe em asilos e hospitais. Produto sólido pela demanda demográfica (envelhecimento).",
-    "JEPP34": "Renda Passiva Dolarizada. Usa estratégia de opções para pagar dividendos mensais altos. Ideal para quem busca fluxo de caixa.",
-    "BBAS3": "Setor Bancário (Brasil). Banco sólido com forte participação no Agronegócio. Historicamente bom pagador de dividendos.",
-    "BTC-USD": "Ouro Digital. Ativo escasso, usado como proteção contra a inflação das moedas tradicionais.",
-    "SOL-USD": "Infraestrutura de Tecnologia. Rede rápida para aplicativos e finanças digitais. Alta volatilidade (risco maior).",
-    "TAEE11": "Setor de Energia. Empresa de transmissão. Receita previsível e contratos longos. Muito segura para iniciantes."
+    "OHI": "🏘️ Imóveis de Saúde (EUA). Dono de asilos e hospitais. Renda sólida pelo envelhecimento da população.",
+    "JEPP34": "💵 Renda Mensal em Dólar. Fundo que usa inteligência para pagar dividendos todo mês.",
+    "BBAS3": "🏦 Banco do Brasil. Líder no Agronegócio. Empresa estatal sólida e excelente pagadora de dividendos.",
+    "TAEE11": "⚡ Energia (Transmissão). Receita garantida por contratos longos. É o investimento mais seguro da B3.",
+    "BTC-USD": "🪙 Ouro Digital. Reserva de valor limitada. Proteção contra a perda de valor do dinheiro real.",
+    "SOL-USD": "🚀 Tecnologia Rápida. Plataforma para novos aplicativos digitais. Alto potencial de crescimento."
 }
 
 # 4. Motor de Busca de Dados
-def buscar_dados(t):
+def buscar_dados_simples(t):
     try:
         t_search = f"{t}.SA" if "-" not in t and ".SA" not in t else t
         ticker = yf.Ticker(t_search)
-        hist = ticker.history(period="1d", interval="5m") # 5m para dar conta de múltiplos ativos
+        hist = ticker.history(period="1d", interval="5m")
         return hist, ticker.info
     except: return None, None
 
-# --- SIDEBAR: CONFIGURAÇÃO DE MONITORAMENTO ---
+# --- SIDEBAR: CONFIGURAÇÃO SIMPLIFICADA ---
 with st.sidebar:
-    st.header("🔑 Configuração do Bot")
-    token_cliente = st.text_input("Token do Bot:", type="password")
-    id_cliente = st.text_input("Seu Chat ID:")
+    st.header("🔑 Sua Licença")
+    token_cliente = st.text_input("Token do Bot:", type="password", help="Insira o token do seu Telegram")
+    id_cliente = st.text_input("Seu ID:", help="Insira seu Chat ID")
     
     st.divider()
-    st.header("🔍 Radar Multi-Ativos")
-    st.info("Escolha os ativos para monitoramento simultâneo.")
+    st.header("🎯 Escolha o que Monitorar")
     
-    col_a, col_b = st.columns(2)
-    with col_a:
-        m_acoes = st.multiselect("Ações (B3):", ["BBAS3", "PETR4", "VALE3", "TAEE11", "VULC3"], ["BBAS3", "TAEE11"])
-        m_bdr = st.multiselect("BDR/ETFs:", ["OHI", "JEPP34", "A1IV34", "IVVB11"], ["OHI", "JEPP34"])
-    with col_b:
-        m_cripto = st.multiselect("Criptos:", ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD"], ["BTC-USD", "SOL-USD"])
+    # Seleção por Categoria (Simplificado para o usuário)
+    monitor_cripto = st.multiselect("🪙 Criptos:", ["BTC-USD", "ETH-USD", "SOL-USD"], ["BTC-USD"])
+    monitor_bdr = st.multiselect("🌎 BDR / ETF (EUA):", ["OHI", "JEPP34", "IVVB11"], ["OHI", "JEPP34"])
+    monitor_acoes = st.multiselect("🇧🇷 Ações (Brasil):", ["BBAS3", "TAEE11", "PETR4", "VULC3"], ["BBAS3", "TAEE11"])
 
-    st.divider()
-    if st.button("🚀 Iniciar Monitoramento"):
-        st.session_state.monitorando = True
-        enviar_alerta_telegram(token_cliente, id_cliente, "🕵️‍♂️ Monitoramento Multi-Ativos Iniciado!")
+    if st.button("🚀 Ligar Terminal"):
+        st.session_state.ativo = True
+        enviar_alerta_telegram(token_cliente, id_cliente, "🤖 InvestSmart Online: Monitorando sua carteira!")
 
-# --- PAINEL PRINCIPAL ---
-st.title("🏛️ InvestSmart Pro | Painel de Monitoramento Estratégico")
+# --- PAINEL PRINCIPAL (O QUE VOCÊ PEDIU) ---
+st.title("🏛️ InvestSmart Pro | Sua Central de Renda")
 
-ativos_para_monitorar = m_acoes + m_bdr + m_cripto
-
-if ativos_para_monitorar:
-    cols = st.columns(3) # Grade de 3 colunas para os ativos
-    
-    for i, t in enumerate(ativos_para_monitorar):
-        with cols[i % 3]:
-            hist, info = buscar_dados(t)
-            if hist is not None and not hist.empty:
-                atual = hist['Close'].iloc[-1]
-                abertura = hist['Open'].iloc[0]
-                var = ((atual/abertura)-1)*100
-                
-                # Card do Ativo
-                with st.container():
-                    st.markdown(f"### {t}")
-                    st.metric("Preço", f"{atual:,.2f}", f"{var:.2f}%")
+def exibir_categoria(titulo, lista_ativos):
+    if lista_ativos:
+        st.subheader(titulo)
+        cols = st.columns(len(lista_ativos))
+        for i, t in enumerate(lista_ativos):
+            with cols[i]:
+                hist, info = buscar_dados_simples(t)
+                if hist is not None and not hist.empty:
+                    atual = hist['Close'].iloc[-1]
+                    # Cálculo de Preço Justo (Simples para o cliente entender)
+                    preco_justo = (info.get('trailingAnnualDividendRate', 0) / 0.06) if info.get('trailingAnnualDividendRate') else (atual * 1.12)
                     
-                    # Mentor IA - Análise para Leigos
-                    tese = TESES.get(t, "Ativo de mercado global com análise técnica baseada em volume.")
+                    # Layout de Preço (Atual em cima, Justo embaixo)
+                    st.metric(t, f"R$ {atual:,.2f}", f"{((atual/hist.Open.iloc[0])-1)*100:.2f}%")
+                    st.caption(f"🎯 **Preço Justo:** R$ {preco_justo:,.2f}")
                     
-                    st.markdown(f"**O que é?** {tese}")
+                    # Mentor IA - Linguagem Simples
+                    tese = TESES.get(t, "Ativo selecionado para monitoramento técnico de preço e volume.")
+                    st.info(f"**O que é?**\n{tese}")
                     
-                    # Veredito Estratégico
-                    if var > 1.5:
-                        st.success("🔥 MOMENTO: Compra Forte (Tendência de Alta)")
-                        if i == 0: # Alerta para o primeiro ativo apenas para não spammar
-                             enviar_alerta_telegram(token_cliente, id_cliente, f"🚀 SINAL: {t} subindo forte ({var:.2f}%)")
-                    elif var < -1.5:
-                        st.error("⚠️ CUIDADO: Queda acentuada. Aguarde suporte.")
+                    # Veredito de Cor
+                    if atual < preco_justo:
+                        st.success("💎 BOA PARA COMPRA")
                     else:
-                        st.warning("⚖️ NEUTRO: Momento de observação.")
-                    
-                    # Gráfico Miniatura (Sparkline)
-                    fig = go.Figure(data=[go.Scatter(x=hist.index, y=hist['Close'], line=dict(color='#ffaa00', width=2))])
-                    fig.update_layout(template='plotly_dark', height=100, margin=dict(l=0,r=0,t=0,b=0), xaxis_visible=False, yaxis_visible=False)
-                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{t}")
-            st.divider()
+                        st.warning("⏳ ESPERE CAIR")
 
-    time.sleep(60)
-    st.rerun()
+                    # Gráfico Sparkline Limpo
+                    fig = go.Figure(data=[go.Scatter(x=hist.index, y=hist['Close'], line=dict(color='#ffaa00', width=3))])
+                    fig.update_layout(template='plotly_dark', height=80, margin=dict(l=0,r=0,t=0,b=0), xaxis_visible=False, yaxis_visible=False)
+                    st.plotly_chart(fig, use_container_width=True, key=f"spark_{t}")
+        st.divider() # Linha separadora entre categorias
+
+# Exibição organizada por "Estantes"
+exibir_categoria("🪙 MERCADO CRIPTO", monitor_cripto)
+exibir_categoria("🌎 MERCADO INTERNACIONAL (BDR/ETF)", monitor_bdr)
+exibir_categoria("🇧🇷 MERCADO BRASILEIRO (AÇÕES)", monitor_acoes)
+
+# Auto-Refresh
+time.sleep(60)
+st.rerun()
