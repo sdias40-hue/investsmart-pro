@@ -6,93 +6,113 @@ from plotly.subplots import make_subplots
 import requests
 import time
 
-# 1. Configuração de Layout (Garantindo que a fonte escura apareça no fundo claro)
-st.set_page_config(page_title="InvestSmart Pro | Real Time", layout="wide")
+# 1. Configuração de Layout High Clarity (Inspirado no image_df2bc5.jpg)
+st.set_page_config(page_title="InvestSmart Pro | Enterprise", layout="wide")
 st.markdown("""
     <style>
-    .main { background-color: #ffffff !important; }
-    h1, h2, h3, p { color: #1a1a1a !important; }
-    .stMetric { background-color: #f1f3f5 !important; border: 2px solid #dee2e6 !important; border-radius: 12px; padding: 20px; }
-    div[data-testid="stMetricValue"] { color: #007bff !important; font-size: 32px !important; }
+    .main { background-color: #f8f9fa; color: #212529; }
+    .stMetric { background-color: #ffffff !important; border: 1px solid #dee2e6 !important; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    div[data-testid="stMetricValue"] { color: #007bff !important; font-weight: 800; }
     .stInfo { background-color: #e7f3ff !important; color: #004085 !important; border-left: 5px solid #007bff !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Motor de Busca Blindado
-def buscar_dados_v81(t):
+# 2. Funções de Suporte Blindadas
+def enviar_alerta(token, chat_id, msg):
+    if token and chat_id:
+        try:
+            url = f"https://api.telegram.org/bot{token}/sendMessage"
+            requests.post(url, data={"chat_id": chat_id, "text": msg}, timeout=5)
+        except: pass
+
+@st.cache_data(ttl=60)
+def buscar_dados_v82(t, p="1d", i="1m"):
     try:
-        # Lógica para garantir que BTC, XRP e outros funcionem
-        if t in ["BTC", "XRP", "ETH", "SOL"]:
-            search = f"{t}-USD"
-        elif "-" in t or ".SA" in t:
-            search = t
-        else:
-            search = f"{t}.SA"
+        # Lógica para garantir BTC, XRP e BDRs funcionem (image_e1717f.jpg)
+        if t in ["BTC", "XRP", "ETH"]: search = f"{t}-USD"
+        elif "-" in t or ".SA" in t: search = t
+        else: search = f"{t}.SA"
             
         ticker = yf.Ticker(search)
-        # Busca 5 dias para ter certeza que tem histórico
-        hist = ticker.history(period="5d", interval="5m")
+        hist = ticker.history(period=p, interval=i)
         return hist, ticker.info
-    except:
-        return None, None
+    except: return None, None
 
-# --- SIDEBAR ---
+# --- SIDEBAR: CENTRO DE COMANDO ---
 with st.sidebar:
-    st.title("🛡️ Painel de Controle")
-    token = st.text_input("Token Telegram:", type="password")
-    cid = st.text_input("Seu ID:", value="8392660003")
+    st.title("🛡️ InvestSmart Control")
+    token_bot = st.text_input("Token Telegram:", type="password")
+    chat_id_user = st.text_input("Seu ID:", value="8392660003")
     
     st.divider()
-    if 'radar' not in st.session_state:
-        st.session_state.radar = ["BTC", "XRP", "BBAS3", "OHI"]
+    modo = st.radio("Escolha o Terminal:", ["📈 Prateleira de Renda", "⚡ Swing Trade (Kandall)"])
     
-    add_item = st.text_input("Adicionar Ativo:").upper()
-    if st.button("Adicionar") and add_item:
-        if add_item not in st.session_state.radar:
-            st.session_state.radar.append(add_item)
+    st.divider()
+    st.subheader("➕ Gerenciar Radar")
+    if 'radar' not in st.session_state: st.session_state.radar = ["BTC", "XRP", "BBAS3", "OHI"]
+    
+    add_t = st.text_input("Novo Ativo:").upper()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Adicionar") and add_t:
+            if add_t not in st.session_state.radar: 
+                st.session_state.radar.append(add_t)
+                enviar_alerta(token_bot, chat_id_user, f"✅ Monitorando: {add_t}")
+                st.rerun()
+    with col2:
+        if st.button("Limpar Tudo"): 
+            st.session_state.radar = []
             st.rerun()
-            
-    if st.button("Limpar Tudo"):
-        st.session_state.radar = []
-        st.rerun()
 
-# --- TERMINAL PRINCIPAL ---
-st.title("🏛️ InvestSmart Pro | Monitoramento em Tempo Real")
-
-if not st.session_state.radar:
-    st.info("Seu radar está vazio. Adicione ativos na barra lateral.")
-else:
-    # Mostra sempre os ativos em grupos de 2 por linha para não embolar
-    for i in range(0, len(st.session_state.radar), 2):
-        cols = st.columns(2)
-        subset = st.session_state.radar[i:i+2]
-        
-        for idx, t in enumerate(subset):
-            with cols[idx]:
-                h, info = buscar_dados_v81(t)
+# --- TERMINAL 1: PRATELEIRA DE RENDA (image_df2bc5.jpg) ---
+if modo == "📈 Prateleira de Renda":
+    st.title("🏛️ Prateleira de Investimentos Sólidos")
+    if not st.session_state.radar:
+        st.info("Radar vazio. Adicione ativos na barra lateral.")
+    else:
+        for t in st.session_state.radar:
+            h, info = buscar_dados_v82(t, "5d", "1h")
+            if h is not None and not h.empty:
+                atual = h['Close'].iloc[-1]
+                dy = info.get('trailingAnnualDividendRate', 0)
+                p_justo = (dy / 0.06) if dy > 0 else (atual * 1.12)
                 
-                if h is not None and not h.empty:
-                    atual = h['Close'].iloc[-1]
-                    abertura = h['Open'].iloc[0]
-                    var = ((atual/abertura)-1)*100
-                    moeda = "US$" if "-" in t or t in ["BTC", "XRP", "ETH"] else "R$"
-                    
-                    st.metric(f"💰 {t}", f"{moeda} {atual:,.2f}", f"{var:.2f}%")
-                    
-                    # Informações do Mentor (Agora sempre visíveis)
-                    setor = info.get('sector', 'Ativo Global')
-                    dy = info.get('trailingAnnualDividendYield', 0) * 100
-                    
-                    st.info(f"**Mentor:** Este ativo de {setor} está operando {'em alta' if var > 0 else 'em queda'}. "
-                            f"Rendimento de Dividendos: {dy:.2f}% ao ano.")
-                    
-                    # Mini Gráfico para não ficar em branco
-                    fig = go.Figure(data=[go.Scatter(x=h.index, y=h['Close'], line=dict(color='#007bff', width=2))])
-                    fig.update_layout(template='plotly_white', height=100, margin=dict(l=0,r=0,t=0,b=0), xaxis_visible=False, yaxis_visible=False)
-                    st.plotly_chart(fig, use_container_width=True, key=f"gr_{t}")
-                else:
-                    st.warning(f"Buscando dados de {t}... Verifique se o código está correto.")
+                with st.container():
+                    c1, c2, c3 = st.columns([1, 1, 2])
+                    c1.metric(f"💰 {t}", f"{atual:,.2f}")
+                    c2.metric("Preço Justo", f"{p_justo:,.2f}")
+                    with c3:
+                        st.info(f"**Mentor:** Ativo de {info.get('sector', 'Global')}. Sugestão de venda em R$ {atual*1.20:,.2f} (+20%).")
+                        if dy > 0: st.success(f"💎 Pagadora de Dividendos: R$ {dy:,.2f}/ano")
+                st.divider()
 
-# Atualização automática a cada 30 segundos
+# --- TERMINAL 2: SWING TRADE (image_8aad4d.png) ---
+else:
+    st.title("⚡ Terminal Swing Trade | Tempo Real")
+    if not st.session_state.radar:
+        st.warning("Adicione ativos no radar lateral.")
+    else:
+        t_sel = st.selectbox("Ativo para Analisar:", st.session_state.radar)
+        h_t, i_t = buscar_dados_v82(t_sel, "60d", "1d")
+        
+        if h_t is not None and not h_t.empty:
+            h_t['MA20'] = h_t['Close'].rolling(window=20).mean()
+            h_t['MA9'] = h_t['Close'].rolling(window=9).mean()
+            p_atual = h_t['Close'].iloc[-1]
+            
+            c_l, c_r = st.columns([1, 3])
+            with c_l:
+                st.metric(t_sel, f"{p_atual:,.2f}")
+                if h_t['MA9'].iloc[-1] > h_t['MA20'].iloc[-1]: st.success("🚀 COMPRA")
+                else: st.error("⚠️ AGUARDE")
+                st.write(f"**Setor:** {i_t.get('sector', 'Global')}")
+
+            with c_r:
+                fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.8, 0.2], vertical_spacing=0.03)
+                fig.add_trace(go.Candlestick(x=h_t.index, open=h_t.Open, high=h_t.High, low=h_t.Low, close=h_t.Close, name='Candle'), row=1, col=1)
+                fig.add_trace(go.Scatter(x=h_t.index, y=h_t['MA20'], name='Tendência', line=dict(color='#28a745')), row=1, col=1)
+                fig.update_layout(template='plotly_white', xaxis_rangeslider_visible=False, height=500, margin=dict(l=0,r=0,t=0,b=0))
+                st.plotly_chart(fig, use_container_width=True)
+
 time.sleep(30)
 st.rerun()
