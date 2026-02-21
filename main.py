@@ -6,13 +6,13 @@ import numpy as np
 import requests
 import time
 
-# 1. Setup de Interface Profissional (image_df2bc5.jpg)
+# 1. Configuração de Interface (image_df2bc5.jpg)
 st.set_page_config(page_title="InvestSmart Pro | Inteligência", layout="wide")
 st.markdown("<style>.main { background-color: #f8f9fa; }</style>", unsafe_allow_html=True)
 
-# 2. Motor de Busca e Análise de Valor (Graham)
+# 2. Motor de Análise Fundamentalista e Projeções
 @st.cache_data(ttl=30)
-def buscar_v210(t):
+def buscar_v220(t):
     try:
         t_up = t.upper().strip()
         is_c = t_up in ["BTC", "XRP", "ETH", "SOL"]
@@ -21,23 +21,24 @@ def buscar_v210(t):
         info = tk.info
         h = tk.history(period="60d", interval="1d")
         
-        # CÁLCULO PREÇO JUSTO (Fórmula de Graham: sqrt(22.5 * LPA * VPA))
+        # CÁLCULOS DE VALOR (Graham & Projeções)
         lpa = info.get('forwardEps', 0)
         vpa = info.get('bookValue', 0)
         p_justo = np.sqrt(22.5 * lpa * vpa) if lpa > 0 and vpa > 0 else 0
         
-        # CORREÇÃO DIVIDENDOS (image_405914.png)
+        # DPA Projetado (Dividendo por Ação)
+        dpa_proj = info.get('dividendRate', 0) 
         div_raw = info.get('dividendYield', 0)
-        div = (div_raw * 100) if (div_raw and div_raw < 1) else div_raw
+        div_real = (div_raw * 100) if (div_raw and div_raw < 1) else div_raw
         
-        return h, info, div, p_justo, is_c
-    except: return None, None, 0, 0, False
+        return h, info, div_real, dpa_proj, p_justo, is_c
+    except: return None, None, 0, 0, 0, False
 
 # --- GESTÃO DE MEMÓRIA ---
 if 'radar' not in st.session_state: st.session_state.radar = {}
 if 'consulta' not in st.session_state: st.session_state.consulta = None
 
-# --- SIDEBAR: CONSULTA OU MONITORAR ---
+# --- SIDEBAR: COMANDO ---
 with st.sidebar:
     st.title("🛡️ Central de Comando")
     tk_bot = st.text_input("Token Telegram:", type="password")
@@ -46,7 +47,7 @@ with st.sidebar:
     st.divider()
     st.subheader("🚀 Análise de Decisão")
     
-    with st.form("form_final", clear_on_submit=True):
+    with st.form("form_v220", clear_on_submit=True):
         t_in = st.text_input("Ticker (VULC3, PETR4, BTC):").upper().strip()
         p_ent = st.number_input("Preço de Entrada:", min_value=0.0, format="%.2f")
         p_alv = st.number_input("Alvo de Venda:", min_value=0.0, format="%.2f")
@@ -58,7 +59,7 @@ with st.sidebar:
             q_a = st.number_input("Qtd Ações:", min_value=0, step=1)
             v_brl = p_ent * q_a
             
-        if st.form_submit_button("🚀 Executar"):
+        if st.form_submit_button("🚀 Analisar e Monitorar"):
             if t_in:
                 if p_ent > 0 or p_alv > 0:
                     st.session_state.radar[t_in] = {
@@ -75,36 +76,39 @@ with st.sidebar:
         st.rerun()
 
 # --- PAINEL PRINCIPAL ---
-st.title("🏛️ InvestSmart Pro | Gestão de Lucro Real")
+st.title("🏛️ InvestSmart Pro | Terminal de Performance")
 
-# SEÇÃO 1: CONSULTA FUNDAMENTALISTA (image_405914.png)
+# SEÇÃO 1: CONSULTA FUNDAMENTALISTA (Onde você decide o Trade)
 if st.session_state.consulta:
     t_c = st.session_state.consulta
-    h_c, info_c, div_c, p_justo, is_c_c = buscar_v210(t_c)
+    h_c, info_c, div_c, dpa_c, p_justo, is_c_c = buscar_v220(t_c)
     if h_c is not None and not h_c.empty:
-        st.subheader(f"🔍 Análise de Decisão: {t_c}")
-        c1, c2, c3, c4 = st.columns(4)
         p_atual = h_c['Close'].iloc[-1]
+        st.subheader(f"🔍 Decisão Estratégica: {t_c}")
         
+        c1, c2, c3, c4 = st.columns(4)
         c1.metric("Preço Atual", f"R$ {p_atual:,.2f}")
+        
         if not is_c_c:
-            c2.metric("Preço Justo (Graham)", f"R$ {p_justo:,.2f}", f"{((p_justo/p_atual)-1)*100:.1f}%")
-            c3.metric("Dividend Yield (Real)", f"{div_c:.2f}%")
-            c4.metric("Setor", info_c.get('sector', 'N/A'))
+            upside = ((p_justo/p_atual)-1)*100 if p_atual > 0 else 0
+            c2.metric("Preço Justo", f"R$ {p_justo:,.2f}", f"{upside:.1f}% Potencial")
+            c3.metric("DPA Projetado", f"R$ {dpa_c:,.2f}/ação")
+            c4.metric("Div. Yield", f"{div_c:.2f}%")
             
-            st.info(f"💡 **Análise do Mentor:** {t_c} pertence ao setor de {info_c.get('industry', 'N/A')}. "
-                    f"Com P/L de {info_c.get('forwardPE', 0):,.1f}, o ativo apresenta {'boa' if p_justo > p_atual else 'baixa'} margem de segurança.")
+            st.success(f"🤖 **Mentor Analista:** {t_c} ({info_c.get('sector', 'N/A')}). "
+                       f"O Preço Justo de Graham indica que a ação está {'BARATA' if p_justo > p_atual else 'CARA'} "
+                       f"em relação aos seus fundamentos. DPA de R$ {dpa_c:,.2f} garante renda no Swing Trade.")
         
         fig_c = go.Figure(data=[go.Candlestick(x=h_c.index, open=h_c.Open, high=h_c.High, low=h_c.Low, close=h_c.Close)])
         fig_c.update_layout(height=350, template='plotly_white', xaxis_rangeslider_visible=False)
         st.plotly_chart(fig_c, use_container_width=True)
     st.divider()
 
-# SEÇÃO 2: MONITORAMENTO ATIVO (LTA/LTB)
+# SEÇÃO 2: MONITORAMENTO ATIVO (Sinais de Kendall)
 if st.session_state.radar:
-    st.subheader("📋 Monitoramento Ativo")
+    st.subheader("📋 Trades em Monitoramento")
     for t_at, cfg in list(st.session_state.radar.items()):
-        h, info, div, p_j, is_c = buscar_v210(t_at)
+        h, info, div, dpa, p_j, is_c = buscar_v220(t_at)
         if h is not None and not h.empty:
             p_agora = h['Close'].iloc[-1]
             sup = h['Low'].rolling(14).min().iloc[-1]
@@ -112,16 +116,16 @@ if st.session_state.radar:
             
             with st.expander(f"📈 VIGIANDO: {t_at}", expanded=True):
                 col1, col2, col3 = st.columns([1, 1, 2])
-                col1.metric("Preço", f"{p_agora:,.2f}")
+                col1.metric("Cotação", f"{p_agora:,.2f}")
                 if st.button(f"Encerrar {t_at}", key=f"st_{t_at}"):
                     del st.session_state.radar[t_at]
                     st.rerun()
                 
                 with col3:
                     st.subheader("🤖 Sinais Day Trade")
-                    if p_agora <= sup * 1.01: st.success("🔥 COMPRA: Pullback no Suporte (LTA)!")
-                    elif p_agora >= res * 0.99: st.error("⚠️ VENDA: Breakout na Resistência (LTB)!")
-                    else: st.write("⚖️ Zona Neutra de Negociação.")
+                    if p_agora <= sup * 1.01: st.success("🔥 COMPRA: Pullback no Suporte!")
+                    elif p_agora >= res * 0.99: st.error("⚠️ VENDA: Resistência atingida!")
+                    else: st.write(f"⚖️ Neutro. Suporte: {sup:,.2f} | Resistência: {res:,.2f}")
 
                 fig = go.Figure(data=[go.Candlestick(x=h.index, open=h.Open, high=h.High, low=h.Low, close=h.Close)])
                 fig.add_hline(y=sup, line_dash="dash", line_color="green", annotation_text="Suporte")
