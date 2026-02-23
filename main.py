@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import numpy as np
 import time
 
-# 1. Configuração de Interface Premium (image_d4d43a.png)
+# 1. Configuração de Interface (Nexus Command Layout)
 st.set_page_config(page_title="Nexus Invest Pro", layout="wide")
 st.markdown("""
     <style>
@@ -14,9 +14,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Motor de Inteligência Sincronizado (Correção de Divergência image_e439b3.png)
+# 2. Motor de Precisão (Sincronizado com Analise de Ações)
 @st.cache_data(ttl=60)
-def analisar_v620(t):
+def analisar_v630(t):
     try:
         t_up = t.upper().strip()
         is_c = t_up in ["BTC", "ETH", "SOL", "XRP"]
@@ -27,48 +27,103 @@ def analisar_v620(t):
         
         info = tk.info
         div_hist = tk.actions['Dividends'].last('1y') if not tk.actions.empty else pd.Series()
-        total_pago_12m = div_hist.sum()
         
-        # Periodicidade (image_e4397d.png)
-        freq = "Mensal" if len(div_hist) >= 10 else ("Semestral/Anual" if len(div_hist) >= 1 else "N/A")
+        # CÁLCULO DE PRECISÃO: Média Mensal Real (image_e4c01e.png)
+        total_pago_ano = div_hist.sum()
+        renda_mensal_por_acao = total_pago_ano / 12 if total_pago_ano > 0 else 0
 
         d = {
             "h": h, "info": info, "is_c": is_c, "ticker": t_up, "pa": h['Close'].iloc[-1],
-            "div_12m": total_pago_12m, "freq": freq, "div_hist": div_hist,
-            "setor": info.get('sector', 'N/A'), "roe": (info.get('returnOnEquity', 0) or 0) * 100
+            "div_12m": total_pago_ano, "div_mensal": renda_mensal_por_acao,
+            "freq": "Mensal" if len(div_hist) >= 10 else "Semestral/Anual",
+            "div_hist": div_hist
         }
 
         # Graham (image_e20607.png)
         lpa, vpa = info.get('forwardEps'), info.get('bookValue')
         d["pj"] = np.sqrt(22.5 * lpa * vpa) if lpa and vpa and not is_c else 0
+        d["roe"] = (info.get('returnOnEquity', 0) or 0) * 100
         
-        # Canais Técnicos (image_4c07e0.png)
+        # Canais LTA/LTB (image_4c07e0.png)
         d["sup"] = h['Low'].tail(30).min()
         d["res"] = h['High'].tail(30).max()
         return d
     except: return None
 
-# --- MEMÓRIA (Proteção contra KeyError image_e4a9dd.png) ---
+# --- ESTADOS DE MEMÓRIA ---
 if 'radar' not in st.session_state: st.session_state.radar = {}
 if 'consulta' not in st.session_state: st.session_state.consulta = None
 
-# --- SIDEBAR: COMANDO NEXUS ( image_4c1edf.png) ---
+# --- SIDEBAR: NEXUS COMMAND (Limpeza Instantânea) ---
 with st.sidebar:
     st.title("🛡️ Nexus Command")
     obj_renda = st.number_input("Meta Renda Mensal (R$):", min_value=0.0, value=1000.0)
     
     with st.form("form_nexus", clear_on_submit=True):
-        t_in = st.text_input("Ticker (VULC3, BTC):").upper().strip()
+        t_in = st.text_input("Ticker (VULC3, MELK3, BTC):").upper().strip()
         is_cripto = t_in in ["BTC", "ETH", "SOL", "XRP"]
         
-        if is_cripto:
-            p_compra = st.number_input("Preço Entrada (US$):", min_value=0.0, format="%.4f")
-            val_inv = st.number_input("Valor Investido (R$):", min_value=0.0)
-            qtd = 0
-        else:
-            p_compra = st.number_input("Preço Compra (R$):", min_value=0.0)
-            qtd = st.number_input("Quantidade:", min_value=0, step=1)
-            
-        p_alvo = st.number_input("Alvo de Venda:", min_value=0.0)
+        p_compra = st.number_input("Preço Entrada (R$ ou US$):", min_value=0.0, format="%.2f")
+        qtd = st.number_input("Quantidade Atual:", min_value=0, step=1)
+        p_alvo = st.number_input("Alvo de Venda:", min_value=0.0, format="%.2f")
         
-        if st.form_submit
+        if st.form_submit_button("🚀 Monitorar e Consultar"):
+            if t_in:
+                st.session_state.radar[t_in] = {"p_in": p_compra, "qtd": qtd, "alvo": p_alvo, "is_c": is_cripto}
+                st.session_state.consulta = t_in; st.rerun()
+
+    if st.button("🗑️ Limpar Registro"):
+        st.session_state.radar, st.session_state.consulta = {}, None; st.rerun()
+
+# --- PAINEL PRINCIPAL ---
+# 1. MONITORAMENTO (Evolução e Ganhos Reais image_e4c47d.png)
+if st.session_state.radar:
+    st.subheader("📋 Evolução do Patrimônio")
+    m_cols = st.columns(3)
+    for i, (t_at, cfg) in enumerate(st.session_state.radar.items()):
+        dat = analisar_v630(t_at)
+        if dat:
+            p_now = dat['pa']
+            evolucao = ((p_now / cfg['p_in']) - 1) * 100
+            lucro_meta = (cfg['alvo'] - cfg['p_in']) * cfg['qtd'] if cfg['alvo'] > 0 else 0
+            
+            with m_cols[i % 3]:
+                st.metric(t_at, f"R$ {p_now:,.2f}", f"{evolucao:.2f}% (Evolução)")
+                if not cfg.get('is_c', False):
+                    st.caption(f"💰 Lucro na Meta: R$ {lucro_meta:,.2f} | 🎯 Alvo: R$ {cfg['alvo']:.2f}")
+                if st.button(f"Sair {t_at}", key=f"del_{t_at}"):
+                    del st.session_state.radar[t_at]; st.rerun()
+
+# 2. SIMULADOR DE CAPITAL (Sincronizado image_e4c01e.png)
+if st.session_state.consulta:
+    d = analisar_v630(st.session_state.consulta)
+    if d:
+        st.divider()
+        st.subheader(f"🔍 Nexus Intelligence: {d['ticker']}")
+        if not d['is_c'] and d['div_mensal'] > 0:
+            # Cálculo bate com Analise de Ações
+            acoes_meta = int(obj_renda / d['div_mensal'])
+            capital_necessario = acoes_meta * d['pa']
+            
+            s1, s2, s3 = st.columns(3)
+            s1.metric("Ações p/ Meta", f"{acoes_meta} un")
+            s2.metric("Capital Necessário", f"R$ {capital_necessario:,.2f}")
+            s3.metric("Renda Mensal Alvo", f"R$ {obj_renda:,.2f}")
+            st.info(f"💡 Para renda de R$ {obj_renda:,.2f}, invista R$ {capital_necessario:,.2f} em {d['ticker']}.")
+
+        # Métricas de Graham e ROE (image_e4c041.png)
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Preço Atual", f"R$ {d['pa']:,.2f}")
+        c2.metric("Preço Justo", f"R$ {d['pj']:,.2f}")
+        c3.metric("Dividend Yield", f"{(d['div_12m']/d['pa'])*100:.2f}%")
+        c4.metric("ROE", f"{d['roe']:.1f}%")
+
+        # Gráfico LTA/LTB (image_4c07e0.png)
+        fig = go.Figure(data=[go.Candlestick(x=d['h'].index, open=d['h'].Open, high=d['h'].High, low=d['h'].Low, close=d['h'].Close)])
+        fig.add_hline(y=d['sup'], line_dash="dash", line_color="green", annotation_text="LTA")
+        fig.add_hline(y=d['res'], line_dash="dash", line_color="red", annotation_text="LTB")
+        fig.update_layout(height=450, template='plotly_white', xaxis_rangeslider_visible=False)
+        st.plotly_chart(fig, use_container_width=True)
+
+time.sleep(30)
+st.rerun()
