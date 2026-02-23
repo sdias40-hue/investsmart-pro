@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import numpy as np
 import time
 
-# 1. Configuração de Interface Premium (Recuperando image_d4d43a.png)
+# 1. Configuração de Interface Premium (Mantendo o layout aprovado)
 st.set_page_config(page_title="Sandro Master Cloud", layout="wide")
 st.markdown("""
     <style>
@@ -14,9 +14,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Motor de Inteligência e Especialidade Trader
+# 2. Motor de Análise Blindado e Inteligente
 @st.cache_data(ttl=60)
-def analisar_v530(t):
+def analisar_v540(t):
     try:
         t_up = t.upper().strip()
         is_c = t_up in ["BTC", "ETH", "SOL", "XRP"]
@@ -32,13 +32,10 @@ def analisar_v530(t):
         
         d = {
             "h": h, "info": info, "is_c": is_c, "ticker": t_up, "pa": h['Close'].iloc[-1],
-            "div_a": div_f, "setor": info.get('sector', 'Trader Assets')
+            "div_a": div_f, "div_m": div_f / 12, "setor": info.get('sector', 'BDR / ETF / Cripto')
         }
 
-        # Especialidade Trader (image_d69d3b.jpg)
-        h['Vol'] = h['Close'].pct_change().std() * np.sqrt(252)
-        d["perfil"] = "Day Trader" if h['Vol'].iloc[-1] > 0.45 else "Swing Trader"
-        
+        # Blindagem: Só calcula fundamentos se os dados existirem (Evita travamento JEPP34/RILYT)
         lpa, vpa = info.get('forwardEps'), info.get('bookValue')
         if lpa and vpa and not is_c and info.get('quoteType') == 'EQUITY':
             d["pj"] = np.sqrt(22.5 * lpa * vpa)
@@ -47,83 +44,94 @@ def analisar_v530(t):
         else:
             d["pj"], d["roe"], d["tem_fund"] = 0, 0, False
         
-        # Tendências Técnicas (image_4c07e0.png)
+        # Canais de Tendência (LTA/LTB) - Recuperados image_4c07e0.png
+        h['MA20'] = h['Close'].rolling(window=20).mean()
         d["sup"] = h['Low'].tail(30).min()
         d["res"] = h['High'].tail(30).max()
+        d["div_hist"] = tk.actions['Dividends'].last('1y') if not tk.actions.empty else pd.Series()
+        
         return d
     except: return None
 
-# --- ESTADOS DE MEMÓRIA ---
+# --- ESTADOS DE MEMÓRIA (Persistência da Consulta) ---
 if 'radar' not in st.session_state: st.session_state.radar = {}
-if 'consulta' not in st.session_state: st.session_state.consulta = None
+if 'consulta_fixa' not in st.session_state: st.session_state.consulta_fixa = None
 
-# --- SIDEBAR: GESTÃO SANDRO (Limpeza Corrigida) ---
+# --- SIDEBAR: GESTÃO SANDRO (Campos Dinâmicos para Cripto) ---
 with st.sidebar:
     st.title("🛡️ Central Sandro Pro")
-    with st.form("form_v530", clear_on_submit=True):
+    with st.form("comando_master", clear_on_submit=True):
         t_in = st.text_input("Ticker (VULC3, BTC):").upper().strip()
-        p_ent = st.number_input("Preço de Compra:", min_value=0.0, format="%.2f")
-        qtd = st.number_input("Quantidade:", min_value=0, step=1)
-        alvo = st.number_input("Preço de Venda (Alvo):", min_value=0.0, format="%.2f")
+        is_cripto = t_in in ["BTC", "ETH", "SOL", "XRP"]
         
-        c1, c2 = st.columns(2)
-        if c1.form_submit_button("🔍 Consultar"):
-            if t_in: st.session_state.consulta = t_in; st.rerun()
-        if c2.form_submit_button("📈 Monitorar"):
-            if t_in and p_ent > 0:
-                st.session_state.radar[t_in] = {"p_in": p_ent, "qtd": qtd, "alvo": alvo}
-                st.session_state.consulta = t_in; st.rerun()
+        if is_cripto:
+            val_inv = st.number_input("Valor Investido (R$):", min_value=0.0, format="%.2f")
+            p_compra = st.number_input("Preço de Entrada (US$):", min_value=0.0, format="%.4f")
+        else:
+            p_compra = st.number_input("Preço de Compra (R$):", min_value=0.0, format="%.2f")
+            qtd = st.number_input("Quantidade:", min_value=0, step=1)
+            
+        alvo = st.number_input("Alvo de Venda:", min_value=0.0, format="%.2f")
+        
+        col_b1, col_b2 = st.columns(2)
+        if col_b1.form_submit_button("🔍 Consultar"):
+            if t_in: st.session_state.consulta_fixa = t_in; st.rerun()
+        if col_b2.form_submit_button("📈 Monitorar"):
+            if t_in and p_compra > 0:
+                st.session_state.radar[t_in] = {"p_in": p_compra, "alvo": alvo, "qtd": qtd if not is_cripto else 1, "is_c": is_cripto}
+                st.session_state.consulta_fixa = t_in; st.rerun()
 
-    if st.button("🧹 Limpar Registro"):
-        st.session_state.radar, st.session_state.consulta = {}, None; st.rerun()
+    if st.button("🧹 Limpar Tudo"):
+        st.session_state.radar, st.session_state.consulta_fixa = {}, None; st.rerun()
 
 # --- PAINEL PRINCIPAL ---
-# 1. MONITORAMENTO (Cards com Lucro Projetado image_d70dc2.png)
+# 1. CARDS DE MONITORAMENTO (Fixos no Topo - image_d4d43a.png)
 if st.session_state.radar:
-    st.subheader("📋 Monitoramento Ativo")
+    st.subheader("📋 Carteira sob Vigilância")
     m_cols = st.columns(3)
     for i, (t_at, cfg) in enumerate(st.session_state.radar.items()):
-        dat = analisar_v530(t_at)
+        dat = analisar_v540(t_at)
         if dat:
             p_now = dat['pa']
-            lucro_atual = ((p_now / cfg['p_in']) - 1) * 100
-            # CORREÇÃO DA LINHA 89: Lucro Projetado
-            lucro_est = (cfg['alvo'] - cfg['p_in']) * cfg['qtd'] if cfg['alvo'] > cfg['p_in'] else 0
-            
+            lucro_pct = ((p_now / cfg['p_in']) - 1) * 100
+            lucro_est = (cfg['alvo'] - cfg['p_in']) * cfg['qtd'] if cfg['alvo'] > 0 else 0
             with m_cols[i % 3]:
-                st.metric(t_at, f"R$ {p_now:,.2f}", f"{lucro_atual:.2f}%")
-                st.caption(f"🎯 Alvo: R$ {cfg['alvo']:,.2f} | 💰 Lucro Projetado: R$ {lucro_est:,.2f}")
-                if st.button(f"Sair {t_at}", key=f"rm_{t_at}"):
+                st.metric(t_at, f"R$ {p_now:,.2f}", f"{lucro_pct:.2f}%")
+                if lucro_est > 0: st.caption(f"💰 Lucro Alvo: R$ {lucro_est:,.2f}")
+                if st.button(f"Sair {t_at}", key=f"btn_{t_at}"):
                     del st.session_state.radar[t_at]; st.rerun()
 
-# 2. ANÁLISE DE TRADER (Opinião do Mentor e BTC)
-if st.session_state.consulta:
-    d = analisar_v530(st.session_state.consulta)
+# 2. ANÁLISE DETALHADA E TENDÊNCIA (Veredito Trader)
+if st.session_state.consulta_fixa:
+    d = analisar_v540(st.session_state.consulta_fixa)
     if d:
         st.divider()
-        st.subheader(f"🔍 Perfil Trader Master: {st.session_state.consulta}")
+        st.subheader(f"🔍 Perfil Trader Master: {st.session_state.consulta_fixa}")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Preço Atual", f"R$ {d['pa']:,.2f}")
-        c2.metric("Perfil Sugerido", d["perfil"])
         
         if d["tem_fund"]:
-            c3.metric("Dividendos", f"{d['div_a']:.2f}%")
+            c2.metric("Preço Justo", f"R$ {d['pj']:,.2f}")
+            c3.metric("Div. Anual", f"{d['div_a']:.2f}%")
             c4.metric("ROE", f"{d['roe']:.1f}%")
-            st.success(f"✅ **Veredito:** Ativo de {d['setor']} ideal para **{d['perfil']}**. Fundamentos sólidos.")
+            st.success(f"✅ **Analista Trader:** Ativo bom para Swing Trader. Setor de {d['setor']}.")
         else:
-            c3.metric("Suporte (LTA)", f"R$ {d['sup']:,.2f}")
-            c4.metric("Resistência (LTB)", f"R$ {d['res']:,.2f}")
-            # Alerta técnico para BTC (image_4c07e0.png)
-            if d['ticker'] == 'BTC':
-                dist = ((d['pa'] / d['sup']) - 1) * 100
-                if dist < 3: st.info("🔥 **Oportunidade de Compra:** BTC tocando o suporte. Ótimo para Swing Trade!")
+            c2.metric("Suporte (LTA)", f"R$ {d['sup']:,.2f}")
+            c3.metric("Resistência (LTB)", f"R$ {d['res']:,.2f}")
+            c4.metric("Div. Mensal", f"{d['div_m']:.3f}%")
+            if d['is_c']: st.info("🔥 **Oportunidade:** BTC no suporte histórico. Momento técnico favorável!")
 
-        # Gráfico Profissional (Linhas de Tendência)
-        fig = go.Figure(data=[go.Candlestick(x=d['h'].index, open=d['h'].Open, high=d['h'].High, low=d['h'].Low, close=d['h'].Close)])
-        fig.add_hline(y=d['sup'], line_dash="dash", line_color="green", annotation_text="Suporte")
-        fig.add_hline(y=d['res'], line_dash="dash", line_color="red", annotation_text="Resistência")
-        fig.update_layout(height=450, template='plotly_white', xaxis_rangeslider_visible=False)
-        st.plotly_chart(fig, use_container_width=True)
+        # Gráfico com LTA/LTB e Histórico de Dividendos
+        with st.expander("📅 Histórico de Proventos e Gráfico de Tendência", expanded=True):
+            if not d["div_hist"].empty:
+                st.table(d["div_hist"].reset_index().rename(columns={'Date':'Data','Dividends':'Valor R$'}))
+            
+            fig = go.Figure(data=[go.Candlestick(x=d['h'].index, open=d['h'].Open, high=d['h'].High, low=d['h'].Low, close=d['h'].Close)])
+            fig.add_trace(go.Scatter(x=d['h'].index, y=d['h']['MA20'], line=dict(color='orange', width=1), name="Média 20d"))
+            fig.add_hline(y=d['sup'], line_dash="dash", line_color="green", annotation_text="LTA")
+            fig.add_hline(y=d['res'], line_dash="dash", line_color="red", annotation_text="LTB")
+            fig.update_layout(height=450, template='plotly_white', xaxis_rangeslider_visible=False)
+            st.plotly_chart(fig, use_container_width=True)
 
 time.sleep(30)
 st.rerun()
