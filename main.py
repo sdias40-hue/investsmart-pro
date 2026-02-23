@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import numpy as np
 import time
 
-# 1. Configuração de Interface Premium (Mantendo o layout aprovado)
+# 1. Configuração de Interface
 st.set_page_config(page_title="Nexus Invest Pro", layout="wide")
 st.markdown("""
     <style>
@@ -14,9 +14,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Motor de Inteligência e Proventos (Sincronizado com Mercado)
+# 2. Motor de Análise e Dividendos Sincronizado
 @st.cache_data(ttl=60)
-def analisar_v590(t):
+def analisar_v600(t):
     try:
         t_up = t.upper().strip()
         is_c = t_up in ["BTC", "ETH", "SOL", "XRP"]
@@ -29,16 +29,13 @@ def analisar_v590(t):
         div_hist = tk.actions['Dividends'].last('1y') if not tk.actions.empty else pd.Series()
         total_pago_12m = div_hist.sum()
         
-        # Periodicidade e Veredito
-        freq = "Mensal" if len(div_hist) >= 10 else ("Semestral" if len(div_hist) >= 2 else "Anual")
-        
         d = {
             "h": h, "info": info, "is_c": is_c, "ticker": t_up, "pa": h['Close'].iloc[-1],
-            "div_12m": total_pago_12m, "freq": freq, "div_hist": div_hist,
-            "setor": info.get('sector', 'N/A'), "roe": (info.get('returnOnEquity', 0) or 0) * 100
+            "div_12m": total_pago_12m, "freq": "Mensal" if len(div_hist) >= 10 else "Anual/Semestral",
+            "setor": info.get('sector', 'N/A'), "div_hist": div_hist
         }
 
-        # Graham e Fundamentos
+        # Fundamentos Graham
         lpa, vpa = info.get('forwardEps'), info.get('bookValue')
         d["pj"] = np.sqrt(22.5 * lpa * vpa) if lpa and vpa and not is_c else 0
         
@@ -49,73 +46,81 @@ def analisar_v590(t):
         return d
     except: return None
 
-# --- MEMÓRIA PERSISTENTE ---
+# --- ESTADOS DE MEMÓRIA ---
 if 'radar' not in st.session_state: st.session_state.radar = {}
 if 'consulta' not in st.session_state: st.session_state.consulta = None
 
-# --- SIDEBAR: GESTÃO E ALVO DE RENDA ---
+# --- SIDEBAR: GESTÃO DE INVESTIMENTOS ---
 with st.sidebar:
     st.title("🛡️ Nexus Command")
-    obj_renda = st.number_input("Objetivo Renda Mensal (R$):", min_value=0.0, value=1000.0)
+    obj_renda = st.number_input("Meta Renda Mensal (R$):", min_value=0.0, value=1000.0)
     
-    with st.form("comando_nexus", clear_on_submit=True):
-        t_in = st.text_input("Ticker (VULC3, GRND3, BTC):").upper().strip()
-        p_avg = st.number_input("Preço de Compra (R$):", min_value=0.0)
+    with st.form("form_nexus", clear_on_submit=True):
+        t_in = st.text_input("Ticker (Ex: VULC3, GRND3):").upper().strip()
+        p_avg = st.number_input("Preço Médio (R$):", min_value=0.0, format="%.2f")
         qtd = st.number_input("Quantidade:", min_value=0, step=1)
-        p_alvo = st.number_input("Preço de Venda (Alvo):", min_value=0.0)
+        p_alvo = st.number_input("Preço Alvo Venda (R$):", min_value=0.0, format="%.2f")
         
         c1, c2 = st.columns(2)
         if c1.form_submit_button("🔍 Consultar"):
             if t_in: st.session_state.consulta = t_in; st.rerun()
         if c2.form_submit_button("📈 Monitorar"):
             if t_in and p_avg > 0:
-                st.session_state.radar[t_in] = {"p_in": p_avg, "qtd": qtd, "alvo": p_alv}
+                st.session_state.radar[t_in] = {"p_in": p_avg, "qtd": qtd, "alvo": p_alvo}
                 st.session_state.consulta = t_in; st.rerun()
 
-    if st.button("🗑️ Limpar Tudo"):
+    if st.button("🗑️ Limpar Registro"):
         st.session_state.radar, st.session_state.consulta = {}, None; st.rerun()
 
 # --- PAINEL PRINCIPAL ---
-# 1. MONITORAMENTO (Cards com Lucro Estimado e Renda)
+# 1. MONITORAMENTO (Com Lucro Alvo Real)
 if st.session_state.radar:
-    st.subheader("📋 Monitoramento e Patrimônio")
+    st.subheader("📋 Patrimônio sob Monitoramento")
     m_cols = st.columns(3)
     for i, (t_at, cfg) in enumerate(st.session_state.radar.items()):
-        dat = analisar_v590(t_at)
+        dat = analisar_v600(t_at)
         if dat:
-            lucro_pct = ((dat['pa'] / cfg['p_in']) - 1) * 100
-            lucro_brl = (cfg['alvo'] - cfg['p_in']) * cfg['qtd'] if cfg['alvo'] > 0 else 0
-            renda_anual = dat['div_12m'] * cfg['qtd']
+            lucro_atual_pct = ((dat['pa'] / cfg['p_in']) - 1) * 100
+            # LUCRO ESTIMADO SE ATINGIR O ALVO
+            lucro_na_meta = (cfg['alvo'] - cfg['p_in']) * cfg['qtd'] if cfg['alvo'] > cfg['p_in'] else 0
             
             with m_cols[i % 3]:
-                st.metric(t_at, f"R$ {dat['pa']:,.2f}", f"{lucro_pct:.2f}%")
-                if lucro_brl > 0: st.caption(f"💰 Lucro Alvo: R$ {lucro_brl:,.2f}")
-                st.caption(f"📅 Renda Anual: R$ {renda_anual:,.2f}")
-                if st.button(f"Sair {t_at}", key=f"rm_{t_at}"):
+                st.metric(t_at, f"R$ {dat['pa']:,.2f}", f"{lucro_atual_pct:.2f}%")
+                if lucro_na_meta > 0:
+                    st.success(f"💰 Lucro na Meta: R$ {lucro_na_meta:,.2f}")
+                    st.caption(f"Alvo: R$ {cfg['alvo']:.2f}")
+                if st.button(f"Remover {t_at}", key=f"del_{t_at}"):
                     del st.session_state.radar[t_at]; st.rerun()
 
-# 2. ÁREA DO MENTOR E SIMULADOR (R$ 1.000)
+# 2. CONSULTA, MENTOR E SIMULADOR DE CAPITAL
 if st.session_state.consulta:
-    d = analisar_v590(st.session_state.consulta)
+    d = analisar_v600(st.session_state.consulta)
     if d:
         st.divider()
         st.subheader(f"🔍 Nexus Intelligence: {st.session_state.consulta}")
+        
+        # SIMULADOR DE INVESTIMENTO PARA RENDA (Meta R$ 1000)
+        if not d['is_c'] and d['div_12m'] > 0:
+            div_mensal_estimado = d['div_12m'] / 12
+            qtd_necessaria = int(obj_renda / div_mensal_estimado)
+            investimento_necessario = qtd_necessaria * d['pa']
+            
+            s1, s2, s3 = st.columns(3)
+            with s1: st.metric("Quantidade p/ Meta", f"{qtd_necessaria} ações")
+            with s2: st.metric("Capital Necessário", f"R$ {investimento_necessario:,.2f}")
+            with s3: st.metric("Renda Mensal Alvo", f"R$ {obj_renda:,.2f}")
+            st.info(f"💡 Para receber R$ {obj_renda:,.2f} mensais de {d['ticker']}, você precisa investir aproximadamente R$ {investimento_necessario:,.2f}.")
+
+        # MÉTRICAS TÉCNICAS E GRÁFICO
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Preço Atual", f"R$ {d['pa']:,.2f}")
-        c2.metric("Preço Justo", f"R$ {d['pj']:,.2f}")
-        c3.metric("Div. 12m", f"R$ {d['div_12m']:,.2f}")
-        c4.metric("ROE", f"{d['roe']:.1f}%")
-        
-        # MENSAGEM DO MENTOR (Recuperada)
-        if not d['is_c']:
-            st.info(f"✅ **Mentor Nexus:** Ativo de {d['setor']} com pagamento **{d['freq']}**. "
-                    f"Para ter renda de **R$ {obj_renda:,.2f}**, você precisa de {int(obj_renda/(d['div_12m']/12))} ações.")
-        
-        # Gráfico com Canais LTA/LTB (Recuperado)
+        c2.metric("Preço Justo (Graham)", f"R$ {d['pj']:,.2f}")
+        c3.metric("Div. 12m Acumulado", f"R$ {d['div_12m']:,.2f}")
+        c4.metric("Periodicidade", d['freq'])
+
         fig = go.Figure(data=[go.Candlestick(x=d['h'].index, open=d['h'].Open, high=d['h'].High, low=d['h'].Low, close=d['h'].Close)])
-        fig.add_trace(go.Scatter(x=d['h'].index, y=d['h']['MA20'], line=dict(color='orange', width=1), name="Média 20d"))
-        fig.add_hline(y=d['sup'], line_dash="dash", line_color="green", annotation_text="LTA/Suporte")
-        fig.add_hline(y=d['res'], line_dash="dash", line_color="red", annotation_text="LTB/Resistência")
+        fig.add_hline(y=d['sup'], line_dash="dash", line_color="green", annotation_text="Suporte LTA")
+        fig.add_hline(y=d['res'], line_dash="dash", line_color="red", annotation_text="Resistência LTB")
         fig.update_layout(height=450, template='plotly_white', xaxis_rangeslider_visible=False)
         st.plotly_chart(fig, use_container_width=True)
 
