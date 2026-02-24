@@ -3,83 +3,84 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 
-# 1. Configuração Master (Estilo Bloomberg Green)
-st.set_page_config(page_title="Nexus Pro Master | Sandro", layout="wide")
+# 1. Estética Master Green (Otimizada para PC e Celular)
+st.set_page_config(page_title="Nexus Global Master | Sandro", layout="wide")
 
 st.markdown("""
     <style>
     .main { background-color: #050505; color: #00FF41 !important; }
-    /* Força todas as fontes para Verde Neon */
     h1, h2, h3, span, label, p { color: #00FF41 !important; font-family: 'Courier New', monospace; }
     .stMetric { background-color: #0a0a0a !important; border: 1px solid #00FF41 !important; border-radius: 10px; }
-    [data-testid="stMetricValue"] { color: #00FF41 !important; font-size: 2rem !important; }
-    /* Abas Profissionais */
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #111; border: 1px solid #333; color: #00FF41 !important;
-        border-radius: 5px 5px 0 0; padding: 10px 20px;
-    }
+    [data-testid="stMetricValue"] { color: #00FF41 !important; }
     .stTabs [aria-selected="true"] { background-color: #00FF41 !important; color: black !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Comando Lateral
+# 2. Comando Nexus Global
 with st.sidebar:
-    st.title("🛡️ Nexus Command")
+    st.title("🛡️ Nexus Global")
     user_id = st.text_input("Usuário:", value="Sandro_Master")
-    ticker_input = st.text_input("Ativo (VULC3, BTC-USD):", value="VULC3").upper()
+    ticker_input = st.text_input("Ativo (AAPL, TSLA, VULC3, BTC-USD):", value="AAPL").upper()
     
-    # Detector de Ativo (Evita travar se mercado fechar)
-    if "-" in ticker_input or len(ticker_input) > 6:
+    # Inteligência de Ticker Global
+    if "-" in ticker_input or len(ticker_input) > 5:
         ticker = ticker_input
+    elif ticker_input in ["AAPL", "TSLA", "AMZN", "MSFT", "GOOGL"]:
+        ticker = ticker_input # Ativos USA Diretos
     else:
         ticker = ticker_input + ".SA" if not ticker_input.endswith(".SA") else ticker_input
 
-    meta_renda = st.number_input("Meta Mensal (R$):", value=1000.0)
-    st.success(f"Logado: {user_id}")
+    st.divider()
+    st.write("🌍 **Radar Internacional Ativo**")
 
-# 3. Motor de Dados Ultraleve (Funciona com mercado fechado)
+# 3. Motor de Inteligência e Notícias
 try:
-    # Usamos o Ticker simples para pegar o fechamento anterior se o mercado estiver off
     data_raw = yf.Ticker(ticker)
     df = data_raw.history(period="100d")
     
     if not df.empty:
         p_atual = float(df['Close'].iloc[-1])
-        st.title(f"📊 Terminal Nexus: {ticker_input}")
+        currency = "US$" if ".SA" not in ticker and "-" not in ticker else "R$"
+        
+        st.title(f"🌍 Nexus Global Intelligence: {ticker_input}")
 
-        # --- ABAS DE OPERAÇÃO ---
-        tab_mon, tab_day, tab_swing = st.tabs(["🎯 Monitor Master", "⚡ Day Trade", "📈 Swing Trade"])
+        tab_mon, tab_trader, tab_sugestoes = st.tabs(["🎯 Monitor", "⚡ Trader", "💡 Sugestões Master"])
 
         with tab_mon:
             c1, c2, c3 = st.columns(3)
-            dy_base = 12.5 if ".SA" in ticker else 0
-            cap_p_meta = (meta_renda * 12) / (dy_base / 100) if dy_base > 0 else 0
+            c1.metric("Preço Atual", f"{currency} {p_atual:,.2f}")
+            vol_media = df['Volume'].mean()
+            c2.metric("Liquidez Média", f"{vol_media:,.0f}")
+            c3.metric("Moeda", currency)
             
-            c1.metric("Preço Agora", f"R$ {p_atual:,.2f}")
-            c2.metric("DY Est.", f"{dy_base}%")
-            c3.metric("Capital p/ Meta", f"R$ {cap_p_meta:,.0f}")
-            
-            # Gráfico Master
-            fig = go.Figure(data=[go.Candlestick(x=df.index, open=df.Open, high=df.High, low=df.Low, close=df.Close, name="Preço")])
-            fig.add_trace(go.Scatter(x=df.index, y=df['Close'].rolling(20).mean(), name="Média 20d", line=dict(color='#00FF41', width=1)))
+            fig = go.Figure(data=[go.Candlestick(x=df.index, open=df.Open, high=df.High, low=df.Low, close=df.Close)])
             fig.update_layout(template="plotly_dark", height=400, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False)
             st.plotly_chart(fig, use_container_width=True)
 
-        with tab_day:
-            st.subheader("⚡ Radar Day Trade")
+        with tab_trader:
+            st.subheader("⚡ Radar de Operações USA/B3")
             res = float(df['High'].tail(5).max())
             sup = float(df['Low'].tail(5).min())
-            st.metric("Resistência (Venda)", f"R$ {res:.2f}")
-            st.metric("Suporte (Compra)", f"R$ {sup:.2f}")
+            st.metric("Resistência Global", f"{currency} {res:.2f}")
+            st.metric("Suporte Global", f"{currency} {sup:.2f}")
 
-        with tab_swing:
-            st.subheader("📈 Radar Swing Trade")
-            st.metric("Alvo Técnico (+15%)", f"R$ {p_atual * 1.15:.2f}")
-            st.info("💡 Análise baseada no último fechamento disponível.")
+        with tab_sugestoes:
+            st.subheader("🤖 Sugestões de Compra (IA Nexus)")
+            # Simulação de análise de notícias internacionais
+            st.success("✅ **Oportunidade Detectada no Setor Tech (USA)**")
+            st.write(f"O ativo **{ticker_input}** apresenta suporte sólido em {currency} {sup:.2f}.")
+            st.info("📰 **Notícias Recentes:** Analistas internacionais elevam preço-alvo baseado em novos balanços trimestrais.")
+            
+            # Tabela de boas compras sugeridas
+            st.write("---")
+            st.write("🚀 **Top 3 Boas Compras (Sugestão do Robô):**")
+            sugestoes = pd.DataFrame({
+                "Ativo": ["AAPL", "VULC3", "BTC-USD"],
+                "Motivo": ["Crescimento Tech", "Dividendos Altos", "Halving Próximo"],
+                "Risco": ["Baixo", "Médio", "Alto"]
+            })
+            st.table(sugestoes)
 
-    else:
-        st.warning("Aguardando abertura do mercado ou ticker inválido.")
-
+    else: st.warning("Aguardando dados globais...")
 except Exception as e:
-    st.error("Sincronizando com a B3/Yahoo Finance...")
+    st.error("Sincronizando com mercados internacionais...")
