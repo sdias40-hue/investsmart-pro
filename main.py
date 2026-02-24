@@ -3,89 +3,107 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 
-# 1. Configuração de Interface Profissional
+# 1. Configuração de Interface "Bloomberg Green"
 st.set_page_config(page_title="Nexus Pro Master | Sandro", layout="wide")
 
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; color: white; }
-    .stTabs [data-baseweb="tab-list"] { gap: 24px; }
-    .stTabs [data-baseweb="tab"] { height: 50px; white-space: pre-wrap; background-color: #1c2128; border-radius: 10px 10px 0 0; color: white; }
-    .stMetric { background-color: #1c2128 !important; border-radius: 12px; padding: 20px; border: 1px solid #444c56; }
-    .trade-card { background-color: #1c2128; padding: 25px; border-radius: 15px; border: 1px solid #444c56; margin-bottom: 20px; }
+    /* Fundo escuro e fontes verdes para máxima legibilidade */
+    .main { background-color: #050505; color: #00FF41; }
+    h1, h2, h3, p { color: #00FF41 !important; font-family: 'Courier New', Courier, monospace; }
+    
+    /* Customização dos Cards e Métricas */
+    .stMetric { 
+        background-color: #0a0a0a !important; 
+        border: 1px solid #00FF41 !important; 
+        border-radius: 10px; 
+        padding: 15px; 
+    }
+    [data-testid="stMetricValue"] { color: #00FF41 !important; }
+    
+    /* Abas Estilizadas */
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #111;
+        border: 1px solid #333;
+        color: #888;
+        border-radius: 5px 5px 0 0;
+        padding: 10px 20px;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #00FF41 !important;
+        color: black !important;
+        font-weight: bold;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Comando Lateral Nexus (Multiusuário)
+# 2. Comando Lateral (Configurações do Usuário)
 with st.sidebar:
-    st.title("🛡️ Nexus Command")
-    user_id = st.text_input("ID do Usuário:", value="Sandro_Master")
-    user_ticker = st.text_input("Ativo (VULC3, BTC-USD, IVVB11):", value="VULC3").upper()
+    st.title("🛡️ Nexus Master")
+    user_id = st.text_input("Usuário:", value="Sandro_Master")
+    ticker_input = st.text_input("Ativo (VULC3, BTC-USD, PETR4):", value="VULC3").upper()
     
-    # Detector Inteligente para Ação, BDR e Cripto
-    if "-" in user_ticker or len(user_ticker) > 6:
-        ticker_final = user_ticker
+    # Tratamento de Ticker para evitar erros de busca
+    if "-" in ticker_input or len(ticker_input) > 6:
+        ticker = ticker_input
     else:
-        ticker_final = user_ticker + ".SA" if not user_ticker.endswith(".SA") else user_ticker
+        ticker = ticker_input + ".SA" if not ticker_input.endswith(".SA") else ticker_input
 
-    meta_renda = st.number_input("Meta de Renda (R$):", value=1000.0)
-    st.success(f"Logado: {user_id}")
-    st.caption("Fontes: Invest10, Folhainvest, B3, Yahoo Finance")
+    meta_renda = st.number_input("Meta Mensal (R$):", value=1000.0)
+    st.divider()
+    st.success(f"Conectado: {user_id}")
 
-# 3. Motor de Inteligência Pensante
+# 3. Motor de Inteligência Estabilizado
 try:
-    df = yf.download(ticker_final, period="100d", interval="1d", progress=False)
+    # Busca dados (progress=False evita poluição visual no log)
+    df = yf.download(ticker, period="100d", interval="1d", progress=False)
     
     if not df.empty:
-        # Extração de dados limpos (Garante que não trave)
+        # Pega valores únicos para evitar erro de "Series"
         p_atual = float(df['Close'].iloc[-1])
-        st.title(f"🚀 Nexus Intelligence Master: {user_ticker}")
+        st.title(f"📊 Terminal Nexus: {ticker_input}")
 
-        # --- SISTEMA DE ABAS PROFISSIONAIS ---
-        tab_monitor, tab_day, tab_swing = st.tabs(["🎯 Monitor Master", "⚡ Centro Day Trade", "📈 Visão Swing Trade"])
+        # --- ABAS DE ANÁLISE ---
+        tab_mon, tab_day, tab_swing = st.tabs(["🎯 Monitor Master", "⚡ Day Trade", "📈 Swing Trade"])
 
-        with tab_monitor:
+        with tab_mon:
             c1, c2, c3 = st.columns(3)
-            dy_base = 12.5 if ".SA" in ticker_final else 0
-            cap_p_meta = (meta_renda * 12) / (dy_base / 100) if dy_base > 0 else 0
+            dy_est = 12.5 if ".SA" in ticker else 0
+            cap_p_meta = (meta_renda * 12) / (dy_est / 100) if dy_est > 0 else 0
             
-            c1.metric("Preço Atual", f"R$ {p_atual:,.2f}")
-            c2.metric("Dividend Yield (Est.)", f"{dy_base}%" if dy_base > 0 else "N/A (Especulativo)")
-            c3.metric("Capital p/ Meta", f"R$ {cap_p_meta:,.0f}" if cap_p_meta > 0 else "N/A")
+            c1.metric("Preço Agora", f"R$ {p_atual:,.2f}")
+            c2.metric("DY Estimado", f"{dy_est}%" if dy_est > 0 else "N/A")
+            c3.metric("Capital p/ Meta", f"R$ {cap_p_meta:,.0f}" if cap_p_meta > 0 else "---")
             
-            # Gráfico Principal com Médias Móveis
-            fig_m = go.Figure(data=[go.Candlestick(x=df.index, open=df.Open, high=df.High, low=df.Low, close=df.Close, name="Preço")])
-            fig_m.add_trace(go.Scatter(x=df.index, y=df['Close'].rolling(20).mean(), name="Média 20d", line=dict(color='yellow')))
-            fig_m.update_layout(template="plotly_dark", height=500, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
-            st.plotly_chart(fig_m, use_container_width=True)
+            # Gráfico com Linhas de Tendência (Média 20d)
+            fig = go.Figure(data=[go.Candlestick(x=df.index, open=df.Open, high=df.High, low=df.Low, close=df.Close, name="Preço")])
+            fig.add_trace(go.Scatter(x=df.index, y=df['Close'].rolling(20).mean(), name="Média 20d", line=dict(color='#00FF41', width=1)))
+            fig.update_layout(template="plotly_dark", height=450, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False)
+            st.plotly_chart(fig, use_container_width=True)
 
         with tab_day:
-            st.markdown('<div class="trade-card" style="border-left: 5px solid #FF4B4B;"><h3>⚡ Terminal Day Trade</h3></div>', unsafe_allow_html=True)
-            col_d1, col_d2 = st.columns(2)
+            st.subheader("⚡ Operação de Alta Frequência")
             res = float(df['High'].tail(5).max())
             sup = float(df['Low'].tail(5).min())
             
-            with col_d1:
-                st.metric("Resistência (Venda)", f"R$ {res:.2f}")
-                st.info("**Opinião Nexus:** Topo de volatilidade detectado. Risco de correção alto.")
-            with col_d2:
-                st.metric("Suporte (Compra)", f"R$ {sup:.2f}")
-                st.warning("**Ação Requerida:** Ponto de entrada se houver volume comprador.")
+            d_col1, d_col2 = st.columns(2)
+            d_col1.metric("Venda (Resistência)", f"R$ {res:.2f}")
+            d_col2.metric("Compra (Suporte)", f"R$ {sup:.2f}")
+            st.info(f"💡 **Insight Nexus:** Ativo com volatilidade de {((res/sup)-1)*100:.2f}% nos últimos 5 dias.")
 
         with tab_swing:
-            st.markdown('<div class="trade-card" style="border-left: 5px solid #00D1FF;"><h3>📈 Estratégia Swing Trade</h3></div>', unsafe_allow_html=True)
-            col_s1, col_s2 = st.columns(2)
-            alvo = p_atual * 1.25
+            st.subheader("📈 Estratégia de Tendência")
+            s_col1, s_col2 = st.columns(2)
+            alvo = p_atual * 1.15
             
-            with col_s1:
-                st.metric("Alvo Técnico (+25%)", f"R$ {alvo:.2f}")
-                st.success(f"**Análise Invest10:** Ativo com margem de segurança atrativa.")
-            with col_s2:
-                tendencia = "ALTA" if p_atual > df['Close'].mean() else "BAIXA"
-                st.metric("Tendência Principal", tendencia)
-                st.write("**Análise Folhainvest:** Ciclo de acumulação identificado.")
+            s_col1.metric("Alvo Técnico (+15%)", f"R$ {alvo:.2f}")
+            tendencia = "ALTA" if p_atual > df['Close'].mean() else "BAIXA"
+            s_col2.metric("Trend Principal", tendencia)
+            st.success(f"💎 **Análise Invest10:** Sugestão de aporte baseado em tendência de {tendencia}.")
 
     else:
-        st.warning(f"🔍 Sincronizando dados de {ticker_final}... Verifique o símbolo.")
+        st.error(f"⚠️ Ativo {ticker_input} não encontrado. Verifique se o código está correto.")
+
 except Exception as e:
-    st.error(f"Erro Master: Verifique se o ticker {user_ticker} é válido.")
+    st.warning("Aguardando sincronização de mercado...")
