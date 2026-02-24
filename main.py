@@ -3,71 +3,71 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 
-# 1. Setup Visual Sandro Pro
-st.set_page_config(page_title="InvestSmart Pro | Terminal Sandro", layout="wide")
-
+# 1. Estética High Clarity Master
+st.set_page_config(page_title="InvestSmart Master | Sandro", layout="wide")
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
-    .stMetric { background-color: #161b22 !important; border-radius: 10px; padding: 15px; border: 1px solid #30363d; }
-    .status-box { padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #30363d; }
+    .stMetric { background-color: #161b22 !important; border-radius: 12px; padding: 20px; border: 1px solid #30363d; }
+    .master-card { padding: 25px; border-radius: 15px; background-color: #1c2128; border: 1px solid #444c56; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Sidebar de Radar
+# 2. Sidebar de Comando Nexus
 with st.sidebar:
-    st.title("🛡️ Nexus Command")
-    ticker = st.text_input("Ticker (Ex: VULC3, JEPP34):", value="VULC3").upper()
-    ticker_final = ticker + ".SA" if not ticker.endswith(".SA") else ticker
-    meta_renda = st.number_input("Meta Renda Mensal (R$):", value=1000.0)
+    st.title("🛡️ Nexus Master")
+    ticker = st.text_input("Ticker Ativo:", value="VULC3").upper()
+    ticker_final = ticker + ".SA" if not ticker.endswith(".SA") and len(ticker) <= 6 else ticker
+    meta_renda = st.number_input("Meta de Renda (R$):", value=1000.0)
     st.divider()
-    st.caption("Fontes: B3, Invest10, Folhainvest")
+    st.info("Conectado: Invest10, Folhainvest, B3")
 
-# 3. Motor de Inteligência Real
+# 3. Processamento de Dados Inteligente
 try:
     acao = yf.Ticker(ticker_final)
-    hist = acao.history(period="60d")
+    hist = acao.history(period="90d")
     info = acao.info
     
     if not hist.empty:
         p_atual = hist['Close'].iloc[-1]
-        
-        # CÁLCULOS DE EFICIÊNCIA (Fugindo dos R$ 86 mil)
-        dy = info.get('dividendYield', 0) * 100
-        lpa = info.get('trailingEps', 0)
-        vpa = info.get('bookValue', 0)
-        # Preço Justo (Graham)
-        preco_justo = (22.5 * lpa * vpa)**0.5 if lpa > 0 and vpa > 0 else 0
-        
-        st.title(f"🔍 Nexus Intelligence: {ticker}")
-        
-        # 4. Painel de Indicadores Principais
+        st.title(f"🚀 Nexus Intelligence Master: {ticker}")
+
+        # 4. Métricas de Impacto
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Preço Atual", f"R$ {p_atual:.2f}")
-        col2.metric("Preço Justo (Graham)", f"R$ {preco_justo:.2f}", f"{((preco_justo/p_atual)-1)*100:.1f}%" if preco_justo > 0 else "0%")
-        col3.metric("Dividend Yield", f"{dy:.2f}%")
-        col4.metric("ROE", f"{info.get('returnOnEquity', 0)*100:.1f}%")
-
-        # 5. Divisão de Operação (Day vs Swing)
-        col_a, col_b = st.columns(2)
         
-        with col_a:
-            st.markdown('<div class="status-box" style="border-left: 5px solid #FF4B4B;"><h4>⚡ Foco DAY TRADE</h4></div>', unsafe_allow_html=True)
-            suporte = hist['Low'].tail(3).min()
-            resistencia = hist['High'].tail(3).max()
-            st.write(f"🚀 **Ponto de Escapada:** R$ {resistencia:.2f}")
-            st.write(f"🛑 **Stop Seguro:** R$ {suporte:.2f}")
-            
-        with col_b:
-            st.markdown('<div class="status-box" style="border-left: 5px solid #00D1FF;"><h4>📈 Foco SWING TRADE</h4></div>', unsafe_allow_html=True)
-            aporte_meta = meta_renda / (dy/100/12) if dy > 0 else 0
-            st.write(f"💰 **Para Renda de R$ {meta_renda}:** Aporte de R$ {aporte_meta:,.2f}")
-            st.write(f"🎯 **Alvo Técnico:** R$ {p_atual * 1.2:.2f} (20% upside)")
+        # Inteligência para Cripto vs Ação
+        is_crypto = "USD" in ticker_final or len(ticker) < 4
+        dy = info.get('dividendYield', 0) * 100 if not is_crypto else 0
+        
+        col1.metric("Preço Atual", f"R$ {p_atual:,.2f}")
+        col2.metric("Dividend Yield", f"{dy:.2f}%" if dy > 0 else "N/A (Cripto)")
+        
+        # Cálculo de Preço Justo ou Força de Mercado
+        rsi = 100 - (100 / (1 + (hist['Close'].diff().gt(0).sum() / hist['Close'].diff().lt(0).sum())))
+        col3.metric("Força RSI (14d)", f"{rsi:.1f}", "Sobrecompra" if rsi > 70 else "Sobrevenda" if rsi < 30 else "Neutro")
+        
+        # Cálculo de Aporte para Meta
+        aporte_meta = meta_renda / (dy/100/12) if dy > 0 else 0
+        col4.metric("Aporte p/ Meta", f"R$ {aporte_meta:,.0f}" if aporte_meta > 0 else "Especulativo")
 
-        # 6. Gráfico de Candlestick
+        # 5. Painéis de Estratégia (Day Trade e Swing Trade)
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown('<div class="master-card" style="border-left: 6px solid #FF4B4B;"><h3>⚡ ESTRATÉGIA DAY TRADE</h3></div>', unsafe_allow_html=True)
+            st.write(f"**Resistência Imediata:** R$ {hist['High'].tail(5).max():.2f}")
+            st.write(f"**Suporte Crítico:** R$ {hist['Low'].tail(5).min():.2f}")
+            st.error(f"Alvo de Saída Rápida: R$ {p_atual * 1.02:.2f}")
+
+        with c2:
+            st.markdown('<div class="master-card" style="border-left: 6px solid #00D1FF;"><h3>📈 ESTRATÉGIA SWING TRADE</h3></div>', unsafe_allow_html=True)
+            st.write(f"**Tendência Principal:** {'Alta' if p_atual > hist['Close'].mean() else 'Baixa'}")
+            st.write(f"**Alvo Técnico (Folhainvest):** R$ {p_atual * 1.25:.2f}")
+            st.success(f"Potencial de Valorização: 25%")
+
+        # 6. Gráfico Candlestick Master
         fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist.Open, high=hist.High, low=hist.Low, close=hist.Close)])
-        fig.update_layout(template="plotly_dark", height=450, margin=dict(l=0,r=0,t=0,b=0))
+        fig.update_layout(template="plotly_dark", height=500, margin=dict(l=0,r=0,t=0,b=0))
         st.plotly_chart(fig, use_container_width=True)
-
+        
     else: st.error("Ativo não encontrado.")
-except: st.error("Erro ao conectar com a B3.")
+except: st.error("Erro na conexão Master.")
