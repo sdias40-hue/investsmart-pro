@@ -3,18 +3,22 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 
-# 1. Configuração de Visibilidade Master (PC e Celular)
+# 1. VISIBILIDADE MASTER (PC E CELULAR)
 st.set_page_config(page_title="Nexus Global Trader | Sandro", layout="wide")
 
 st.markdown("""
     <style>
     .main { background-color: #000000 !important; }
-    h1, h2, h3, h4, p, span, label, div { color: #ffffff !important; font-family: 'Segoe UI', sans-serif !important; }
+    /* Forçar Branco Puro em todas as fontes para legibilidade no PC */
+    h1, h2, h3, h4, p, span, label, div { 
+        color: #ffffff !important; 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    }
     .neon-blue { color: #00d4ff !important; font-weight: bold; }
     .stMetric { background-color: #0a0a0a !important; border: 1px solid #00d4ff !important; border-radius: 8px; }
     [data-testid="stMetricValue"] { color: #ffffff !important; }
     .status-box { background-color: #0e1117; border: 1px solid #00d4ff; border-left: 10px solid #00d4ff; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-    /* Proteção para o gráfico aparecer grande no computador e não ficar em branco */
+    /* Garantia do gráfico aparecer grande no computador */
     .stPlotlyChart { min-height: 550px !important; width: 100% !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -64,7 +68,7 @@ try:
         c1.metric("Preço Hoje", f"R$ {p_at:,.2f}")
         c2.metric("Meu Lucro/Perda", f"R$ {lucro_r:,.2f}", delta=f"{((p_at/p_pago)-1)*100:.2f}%" if p_pago > 0 else "0%")
 
-        # VEREDITO E ANÁLISE DO ROBÔ
+        # VEREDITO DO ROBÔ (OPINIÃO MANTIDA DO CELULAR)
         st.divider()
         st.markdown("<h3 class='neon-blue'>🤖 Veredito do Robô Nexus</h3>", unsafe_allow_html=True)
         tende = "ALTA" if p_at > data['Close'].mean() else "QUEDA"
@@ -74,11 +78,11 @@ try:
             <div class='status-box' style='border-left-color: {cor};'>
                 <h4 style='color: {cor} !important;'>📢 RECOMENDAÇÃO: {tende}</h4>
                 <p><b>Análise Master:</b> O ativo está em ciclo de {tende}. Suporte forte em R$ {data['Low'].tail(10).min():.2f}.</p>
-                <p><b>Influência Global:</b> Acompanhe os EUA no topo; se o S&P 500 subir, o ativo {t_in} ganha força.</p>
+                <p><b>Influência Global:</b> Olhe os EUA acima; se o S&P 500 subir, o ativo tende a buscar R$ {data['High'].tail(10).max():.2f}.</p>
             </div>
         """, unsafe_allow_html=True)
 
-        # GRÁFICO MASTER (FORÇADO PARA PC)
+        # GRÁFICO MASTER (RESTABELECIDO PARA PC)
         st.markdown("<h4 class='neon-blue'>📈 Mapa de Preços</h4>", unsafe_allow_html=True)
                 fig = go.Figure(data=[go.Candlestick(x=data.index, open=data.Open, high=data.High, low=data.Low, close=data.Close)])
         fig.update_layout(template="plotly_dark", height=500, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
