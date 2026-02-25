@@ -8,7 +8,7 @@ st.set_page_config(page_title="Nexus Trader AI | Sandro", layout="wide")
 
 st.markdown("""
     <style>
-    /* Fundo Preto Absoluto e Fontes Brancas para não sumir no PC */
+    /* Fundo Preto e Fontes Brancas para não sumir no PC */
     .main { background-color: #000000; color: #ffffff !important; }
     h1, h2, h3, h4, p, span, label, div { color: #ffffff !important; font-family: 'Segoe UI', sans-serif; }
     .neon-blue { color: #00d4ff !important; font-weight: bold; }
@@ -81,16 +81,15 @@ try:
         st.markdown(f"""
             <div class='status-box' style='border-left-color: {cor_v};'>
                 <h4 style='color: {cor_v} !important;'>📢 {veredito}</h4>
-                <p><b>Análise de Tendência:</b> O ativo está em ciclo de {tendencia} no curto prazo.</p>
+                <p><b>Análise Técnica:</b> O ativo está em ciclo de {tendencia} no curto prazo.</p>
                 <p><b>Análise Master:</b> Ponto seguro de entrada perto de R$ {data['Low'].tail(10).min():.2f}.</p>
-                <p><b>Alvo de Trader:</b> Considere realizar lucros perto de R$ {data['High'].tail(10).max():.2f}.</p>
+                <p><b>Dica de Trader:</b> Notícias e volume indicam resistência perto de R$ {data['High'].tail(10).max():.2f}.</p>
             </div>
         """, unsafe_allow_html=True)
 
         # --- GRÁFICO MASTER (RESOLVIDO PARA PC) ---
         st.markdown("<h4 class='neon-blue'>📈 Histórico de Preços</h4>", unsafe_allow_html=True)
-        fig = go.Figure(data=[go.Candlestick(x=data.index, open=data.Open, high=data.High, low=data.Low, close=data.Close)])
-        # Linha de tendência Azul Neon
+                fig = go.Figure(data=[go.Candlestick(x=data.index, open=data.Open, high=data.High, low=data.Low, close=data.Close)])
         fig.add_trace(go.Scatter(x=data.index, y=data['Close'].rolling(7).mean(), name="Tendência", line=dict(color='#00d4ff', width=2)))
         
         fig.update_layout(template="plotly_dark", height=550, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
