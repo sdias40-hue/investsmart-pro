@@ -21,7 +21,7 @@ st.markdown("""
     .status-box { background-color: #0e1117; border-left: 6px solid #00d4ff; padding: 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333; }
     
     /* Forçar Gráfico a aparecer no PC */
-    iframe { min-height: 500px !important; }
+    iframe { min-height: 550px !important; width: 100% !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -37,8 +37,10 @@ with st.sidebar:
     val_investido = st.number_input("Valor Investido (R$):", value=0.0)
     
     if is_crypto:
+        st.caption("Foco: Valor Total Investido")
         preco_pago = st.number_input("Preço de Compra (R$):", value=0.0, format="%.2f")
     else:
+        st.caption("Foco: Quantidade e Preço Médio")
         qtd_comprada = st.number_input("Quantidade de Ações:", value=0)
         preco_pago = st.number_input("Preço Médio (R$):", value=0.0, format="%.2f")
 
@@ -49,6 +51,7 @@ with st.sidebar:
 t_f = ticker_input + ".SA" if not is_crypto and not ticker_input.endswith(".SA") else ticker_input
 
 try:
+    # Coletando 60 dias para estabilidade no PC
     data = yf.download(t_f, period="60d", interval="1d", progress=False)
     
     if not data.empty:
@@ -66,7 +69,7 @@ try:
         c1.metric("Cotação de Hoje", f"R$ {p_atual:,.2f}")
         c2.metric("Meu Lucro/Perda", f"R$ {lucro_r:,.2f}", delta=f"{porc:.2f}%")
 
-        # --- VEREDITO DO ROBÔ (O QUE VOCÊ PEDIU) ---
+        # --- VEREDITO DO ROBÔ (ANÁLISE GRÁFICA + INTERNET) ---
         st.divider()
         st.markdown("<h3 class='neon-blue'>🤖 Veredito do Robô Nexus</h3>", unsafe_allow_html=True)
         
@@ -78,17 +81,20 @@ try:
         st.markdown(f"""
             <div class='status-box' style='border-left-color: {cor_v};'>
                 <h4 style='color: {cor_v} !important;'>📢 {veredito}</h4>
-                <p><b>Análise Técnica:</b> O ativo está em tendência de {tendencia} no gráfico diário.</p>
-                <p><b>Análise Master:</b> Ponto seguro de compra perto de R$ {data['Low'].tail(10).min():.2f}.</p>
-                <p><b>Alvo de Trader:</b> Considere lucrar perto de R$ {data['High'].tail(10).max():.2f}.</p>
+                <p><b>Análise de Tendência:</b> O ativo está em ciclo de {tendencia} no curto prazo.</p>
+                <p><b>Análise Master:</b> Ponto seguro de entrada perto de R$ {data['Low'].tail(10).min():.2f}.</p>
+                <p><b>Alvo de Trader:</b> Considere realizar lucros perto de R$ {data['High'].tail(10).max():.2f}.</p>
             </div>
         """, unsafe_allow_html=True)
 
-        # --- GRÁFICO MASTER (RESTAURADO PARA PC) ---
-        st.markdown("<h4 class='neon-blue'>📈 Mapa de Preços</h4>", unsafe_allow_html=True)
+        # --- GRÁFICO MASTER (RESOLVIDO PARA PC) ---
+        st.markdown("<h4 class='neon-blue'>📈 Histórico de Preços</h4>", unsafe_allow_html=True)
         fig = go.Figure(data=[go.Candlestick(x=data.index, open=data.Open, high=data.High, low=data.Low, close=data.Close)])
-        fig.update_layout(template="plotly_dark", height=500, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
+        # Linha de tendência Azul Neon
+        fig.add_trace(go.Scatter(x=data.index, y=data['Close'].rolling(7).mean(), name="Tendência", line=dict(color='#00d4ff', width=2)))
+        
+        fig.update_layout(template="plotly_dark", height=550, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
         st.plotly_chart(fig, use_container_width=True)
 
-    else: st.warning("Por favor, digite um código de ativo válido.")
+    else: st.warning("Aguardando ticker válido... Ex: VULC3 ou BTC-USD")
 except Exception: st.error("Sincronizando com a Nuvem... Tente atualizar a página.")
