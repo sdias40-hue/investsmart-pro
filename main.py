@@ -9,7 +9,7 @@ st.set_page_config(page_title="Nexus Global Trader | Sandro", layout="wide")
 st.markdown("""
     <style>
     .main { background-color: #000000 !important; }
-    /* Forçar Branco Puro em todas as telas */
+    /* Forçar Branco Puro em todas as telas para não apagar no PC */
     h1, h2, h3, h4, p, span, label, div, .stMarkdown { 
         color: #ffffff !important; 
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
@@ -18,7 +18,7 @@ st.markdown("""
     .stMetric { background-color: #0a0a0a !important; border: 1px solid #00d4ff !important; border-radius: 8px; }
     [data-testid="stMetricValue"] { color: #ffffff !important; }
     .status-box { background-color: #0e1117; border: 1px solid #00d4ff; border-left: 10px solid #00d4ff; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-    /* Proteção para o gráfico aparecer no computador */
+    /* Proteção para o gráfico aparecer no computador e não ficar em branco */
     .stPlotlyChart { min-height: 550px !important; width: 100% !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -43,7 +43,7 @@ with st.sidebar:
     if st.sidebar.button("🚀 Gerar Inteligência Master"):
         st.rerun()
 
-# 3. RADAR DAS BOLSAS MUNDIAIS (INFLUÊNCIA GLOBAL)
+# 3. RADAR DAS BOLSAS MUNDIAIS (NOVA IDEIA MASTER)
 st.markdown("<h3 class='neon-blue'>🌍 Radar das Bolsas Mundiais</h3>", unsafe_allow_html=True)
 indices = {"S&P 500 (EUA)": "^GSPC", "Nasdaq (Tech EUA)": "^IXIC", "Ibovespa (Brasil)": "^BVSP"}
 cols = st.columns(len(indices))
@@ -61,14 +61,14 @@ for i, (nome, ticket) in enumerate(indices.items()):
 t_final = ticker_input + ".SA" if not is_crypto and "." not in ticker_input and len(ticker_input) < 6 else ticker_input
 
 try:
-    # yf.download é mais estável para evitar erros de sincronização
+    # yf.download com parâmetros fixos para evitar erros de sincronização
     data = yf.download(t_final, period="60d", interval="1d", progress=False)
     
     if not data.empty:
         p_atual = float(data['Close'].iloc[-1])
         st.markdown(f"<h1>📊 Mentor Nexus: <span class='neon-blue'>{ticker_input}</span></h1>", unsafe_allow_html=True)
 
-        # PERFORMANCE REAL
+        # PERFORMANCE REAL (LUCRO/PREJUÍZO)
         c1, c2 = st.columns(2)
         if not is_crypto and 'qtd_comprada' in locals() and qtd_comprada > 0:
             lucro_r = (p_atual - preco_pago) * qtd_comprada
@@ -78,7 +78,7 @@ try:
         c1.metric("Preço Agora", f"R$ {p_atual:,.2f}")
         c2.metric("Meu Lucro/Perda", f"R$ {lucro_r:,.2f}", delta=f"{((p_atual/preco_pago)-1)*100:.2f}%" if preco_pago > 0 else "0%")
 
-        # VEREDITO E ANÁLISE DO ROBÔ
+        # VEREDITO E ANÁLISE DO ROBÔ (A OPINIÃO QUE VOCÊ PEDIU)
         st.divider()
         st.markdown("<h3 class='neon-blue'>🤖 Veredito do Robô Nexus</h3>", unsafe_allow_html=True)
         tendencia = "ALTA" if p_atual > data['Close'].mean() else "QUEDA"
@@ -87,17 +87,17 @@ try:
         st.markdown(f"""
             <div class='status-box' style='border-left-color: {cor_v};'>
                 <h4 style='color: {cor_v} !important;'>📢 RECOMENDAÇÃO: {tendencia}</h4>
-                <p><b>Análise Master:</b> O ativo está em ciclo de {tendencia}. Suporte forte em R$ {data['Low'].tail(10).min():.2f}.</p>
-                <p><b>Influência Global:</b> Acompanhe os EUA acima; se o S&P 500 subir, o ativo tende a ganhar força.</p>
-                <p><b>Dica do Mentor:</b> Considere realizar lucros se chegar perto de R$ {data['High'].tail(10).max():.2f}.</p>
+                <p><b>Análise Master:</b> O ativo está em ciclo de {tendencia}. Suporte forte identificado em R$ {data['Low'].tail(10).min():.2f}.</p>
+                <p><b>Influência Global:</b> Acompanhe os EUA no topo; se o S&P 500 subir, o ativo {ticker_input} ganha força.</p>
+                <p><b>Dica do Mentor:</b> Considere realizar lucros se o preço testar a região de R$ {data['High'].tail(10).max():.2f}.</p>
             </div>
         """, unsafe_allow_html=True)
 
-        # GRÁFICO (RESTAURADO E FORÇADO PARA PC)
+        # GRÁFICO MASTER (RESTABELECIDO E FORÇADO PARA PC)
         st.markdown("<h4 class='neon-blue'>📈 Mapa de Preços</h4>", unsafe_allow_html=True)
                 fig = go.Figure(data=[go.Candlestick(x=data.index, open=data.Open, high=data.High, low=data.Low, close=data.Close)])
         fig.update_layout(template="plotly_dark", height=500, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
         st.plotly_chart(fig, use_container_width=True)
 
     else: st.warning("Digite um código válido... Ex: VULC3 ou BTC-USD")
-except Exception: st.error("Sincronizando com a Nuvem... Clique em 'Gerar Inteligência Master'.")
+except Exception: st.error("Sincronizando com a Nuvem... Tente novamente em alguns instantes.")
