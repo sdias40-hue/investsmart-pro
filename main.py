@@ -3,87 +3,91 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 
-# 1. ESTÉTICA PREMIUM (O RETORNO DO LAYOUT MASTER)
-st.set_page_config(page_title="Nexus Global Intelligence | Sandro", layout="wide")
+# 1. Configuração de Visibilidade Máxima (Padronização Sandro Master)
+st.set_page_config(page_title="Nexus Mentor | Sandro", layout="wide")
 
 st.markdown("""
     <style>
-    .main { background-color: #050505 !important; }
-    h1, h2, h3, h4, span, label, p { 
-        color: #00FF41 !important; 
-        font-family: 'Courier New', monospace !important; 
-    }
-    /* Cards de Alta Qualidade (Visual Glass) */
-    .stMetric { 
-        background-color: rgba(0, 255, 65, 0.05) !important; 
-        border: 1px solid #00FF41 !important; 
-        border-radius: 12px; 
-        padding: 20px;
-    }
-    [data-testid="stMetricValue"] { color: #ffffff !important; font-size: 2rem !important; }
+    /* Fundo Preto Absoluto e Fontes Brancas */
+    .main { background-color: #000000; color: #ffffff !important; }
+    h1, h2, h3, h4, p, span, label, div { color: #ffffff !important; font-family: 'Segoe UI', sans-serif; }
+    .neon-blue { color: #00d4ff !important; font-weight: bold; }
     
-    /* Veredito Master Blindado */
-    .status-box { 
-        background-color: #000000; 
-        border: 2px solid #00FF41; 
-        border-left: 12px solid #00FF41; 
-        padding: 25px; 
-        border-radius: 15px;
-        box-shadow: 0px 0px 15px rgba(0, 255, 65, 0.2);
-    }
+    /* Cards de Métricas com Borda Neon */
+    .stMetric { background-color: #0a0a0a !important; border: 1px solid #00d4ff !important; border-radius: 8px; padding: 10px; }
+    [data-testid="stMetricValue"] { color: #ffffff !important; font-size: 1.8rem !important; }
+    
+    /* Caixas do Mentor (Onde Comprar/Vender) - Mantendo o que ficou perfeito */
+    .mentor-box { background-color: #0e1117; border-left: 6px solid #00d4ff; padding: 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333; }
+    
+    /* Forçar Gráfico a aparecer no PC com altura correta */
+    iframe { min-height: 500px !important; width: 100% !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. RADAR GLOBAL: BOLSAS DO MUNDO (TOP VIEW)
-st.markdown("<h3 style='text-align: center;'>🌍 RADAR DE INTELIGÊNCIA GLOBAL</h3>", unsafe_allow_html=True)
-indices = {"S&P 500 (EUA)": "^GSPC", "Nasdaq (Tech)": "^IXIC", "Ibovespa (BR)": "^BVSP"}
-c_idx = st.columns(3)
-
-for i, (nome, ticket) in enumerate(indices.items()):
-    try:
-        idx_data = yf.Ticker(ticket).history(period="2d")
-        if len(idx_data) > 1:
-            v_at = idx_data['Close'].iloc[-1]
-            var = ((v_at / idx_data['Close'].iloc[-2]) - 1) * 100
-            c_idx[i].metric(nome, f"{v_at:,.0f}", f"{var:.2f}%")
-    except: pass
-
-# 3. COMANDO LATERAL
+# 2. Comando Lateral: Gestão de Carteira
 with st.sidebar:
-    st.markdown("<h2>🛡️ Nexus System</h2>", unsafe_allow_html=True)
-    t_in = st.text_input("Ativo Principal:", value="TSLA").upper()
-    val_inv = st.number_input("Capital Alocado (R$):", value=0.0)
-    p_pago = st.number_input("Preço Médio (R$):", value=0.0)
-    st.sidebar.button("🚀 Sincronizar")
+    st.markdown("<h2 class='neon-blue'>🛡️ Nexus Mentor</h2>", unsafe_allow_html=True)
+    ticker_input = st.text_input("Ativo (Ex: BTC-USD ou VULC3):", value="BTC-USD").upper()
+    
+    st.divider()
+    st.markdown("<h4 class='neon-blue'>💰 Dados da Carteira</h4>", unsafe_allow_html=True)
+    val_investido = st.number_input("Valor que investi (R$):", value=0.0)
+    preco_pago = st.number_input("Preço que paguei:", value=0.0, format="%.2f")
+    
+    if st.sidebar.button("🚀 Sincronizar Tudo"):
+        st.rerun()
 
-# 4. MOTOR DE ANÁLISE MASTER
-t_f = t_in + ".SA" if "-" not in t_in and "." not in t_in and len(t_in) < 6 else t_in
+# 3. Motor de Busca
+ticker_f = ticker_input + ".SA" if len(ticker_input) < 6 and "." not in ticker_input else ticker_input
 
 try:
-    data = yf.download(t_f, period="60d", interval="1d", progress=False)
+    # Coletando 60 dias para estabilidade
+    data = yf.download(ticker_f, period="60d", interval="1d", progress=False)
+    
     if not data.empty:
-        p_at = float(data['Close'].iloc[-1])
-        st.markdown(f"<h1 style='text-align: center;'>🌍 {t_in} INTELLIGENCE REPORT</h1>", unsafe_allow_html=True)
+        p_atual = float(data['Close'].iloc[-1])
+        st.markdown(f"<h1>📊 Mentor Nexus: <span class='neon-blue'>{ticker_input}</span></h1>", unsafe_allow_html=True)
 
+        # --- PAINEL DE PERFORMANCE ---
         c1, c2 = st.columns(2)
-        lucro = (p_at - p_pago) * (val_inv / p_pago) if p_pago > 0 else 0
-        c1.metric("Cotação Atual", f"R$ {p_at:,.2f}")
-        c2.metric("Performance", f"R$ {lucro:,.2f}", delta=f"{((p_at/p_pago)-1)*100:.2f}%" if p_pago > 0 else "0%")
+        lucro_r = (p_atual - preco_pago) * (val_investido / preco_pago) if preco_pago > 0 else 0
+        porc = ((p_atual / preco_pago) - 1) * 100 if preco_pago > 0 else 0
+        
+        c1.metric("Cotação de Hoje", f"R$ {p_atual:,.2f}")
+        c2.metric("Meu Lucro/Perda", f"R$ {lucro_r:,.2f}", delta=f"{porc:.2f}%")
 
-        # VEREDITO PREMIUM
+        # --- ORIENTAÇÃO DO MENTOR (LINGUAGEM QUE FICOU PERFEITA) ---
         st.divider()
-        tende = "ALTA" if p_at > data['Close'].mean() else "QUEDA"
-        cor = "#00FF41" if tende == "ALTA" else "#FF3131"
-        st.markdown(f"""
-            <div class='status-box'>
-                <h3 style='color: {cor} !important;'>📢 VEREDITO DO ROBÔ: {tende}</h3>
-                <p style='color: #ffffff !important;'>Suporte detectado em R$ {data['Low'].tail(10).min():.2f}.</p>
-                <p style='color: #ffffff !important;'>Tendência Global: O S&P 500 está influenciando o fluxo de capital para {t_in}.</p>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown("<h3 class='neon-blue'>💡 O que o robô recomenda agora?</h3>", unsafe_allow_html=True)
+        
+        topo_10 = float(data['High'].tail(10).max())
+        fundo_10 = float(data['Low'].tail(10).min())
+        
+        col_compra, col_venda = st.columns(2)
+        with col_compra:
+            st.markdown(f"<div class='mentor-box'><h4>🛒 Onde Comprar:</h4><p>Para quem quer entrar, o preço está seguro perto de <b class='neon-blue'>R$ {fundo_10:.2f}</b>.</p></div>", unsafe_allow_html=True)
+        
+        with col_venda:
+            st.markdown(f"<div class='mentor-box'><h4>💰 Onde Vender:</h4><p>Para quem quer lucrar, considere vender quando chegar em <b class='neon-blue'>R$ {topo_10:.2f}</b>.</p></div>", unsafe_allow_html=True)
 
-        # GRÁFICO EM ALTA DEFINIÇÃO
-                fig = go.Figure(data=[go.Candlestick(x=data.index, open=data.Open, high=data.High, low=data.Low, close=data.Close)])
-        fig.update_layout(template="plotly_dark", height=500, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False)
+        # --- GRÁFICO MASTER (RESTAURADO PARA PC) ---
+        st.markdown("<h4 class='neon-blue'>📈 Histórico de Preços</h4>", unsafe_allow_html=True)
+        
+        fig = go.Figure(data=[go.Candlestick(
+            x=data.index,
+            open=data['Open'],
+            high=data['High'],
+            low=data['Low'],
+            close=data['Close'],
+            name="Candlestick"
+        )])
+        
+        # Linha de tendência Azul Neon para o PC
+        fig.add_trace(go.Scatter(x=data.index, y=data['Close'].rolling(7).mean(), name="Tendência", line=dict(color='#00d4ff', width=2)))
+        
+        fig.update_layout(template="plotly_dark", height=500, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
         st.plotly_chart(fig, use_container_width=True)
-except: st.error("Sincronizando com os mercados mundiais...")
+
+    else: st.warning("Por favor, digite um código de ativo válido.")
+except Exception: st.error("Sincronizando com a Nuvem... Tente clicar em 'Sincronizar Tudo'.")
