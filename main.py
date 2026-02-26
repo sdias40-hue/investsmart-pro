@@ -2,62 +2,78 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
-import numpy as np
 
-# 1. Interface Premium (Visual Limpo e Legível)
-st.set_page_config(page_title="Nexus Invest Pro", layout="wide")
+# 1. VISUAL NEXUS MENTOR (Ponto de Restauração Validado)
+st.set_page_config(page_title="Nexus Mentor | Sandro", layout="wide")
+
 st.markdown("""
     <style>
-    .main { background-color: #f8f9fa; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #d1d5db; }
-    .trader-box { background-color: #121212; color: #00FF00; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #00FF00; font-size: 18px; font-weight: bold; margin: 10px 0; }
-    </style>
-""", unsafe_allow_html=True)
-
-# 2. Motor de Inteligência (Cripto vs Ações)
-@st.cache_data(ttl=60)
-def analisar_ativo(t):
-    try:
-        t_up = t.upper().strip()
-        # Identifica se é Cripto Principal
-        is_c = t_up in ["BTC", "ETH", "SOL", "XRP", "BNB"]
-        search = f"{t_up}-USD" if is_c else (f"{t_up}.SA" if "." not in t_up else t_up)
-        
-        tk = yf.Ticker(search)
-        h = tk.history(period="1y", interval="1d")
-        if h.empty: return None
-        
-        # Cálculo de Dividendos (Renda Mensal Real)
-        div_hist = tk.actions['Dividends'].last('1y')
-        pago_total_ano = div_hist.sum() if not div_hist.empty else 0
-        renda_mensal_un = pago_total_ano / 12
-        
-        # Perfil de Volatilidade
-        vol = h['Close'].pct_change().std() * np.sqrt(252)
-        perfil = "🚀 DAY TRADE (Alta Volatilidade)" if vol > 0.45 else "📈 SWING TRADE (Estável)"
-        
-        return {
-            "h": h, "ticker": t_up, "pa": h['Close'].iloc[-1], "is_c": is_c,
-            "renda_m": renda_mensal_un, "perfil": perfil, 
-            "dy": (pago_total_ano/h['Close'].iloc[-1]) if pago_total_ano > 0 else 0,
-            "sup": h['Low'].tail(30).min(), "res": h['High'].tail(30).max()
-        }
-    except: return None
-
-# --- SIDEBAR NEXUS ---
-with st.sidebar:
-    st.title("🛡️ Nexus Command")
-    obj_renda = st.number_input("Meta Renda Mensal Desejada (R$):", value=1000.0)
+    /* Fundo Preto Absoluto e Fontes Brancas Master */
+    .main { background-color: #000000; color: #ffffff !important; }
+    h1, h2, h3, h4, p, span, label, div { color: #ffffff !important; font-family: 'Segoe UI', sans-serif; }
+    .neon-blue { color: #00d4ff !important; font-weight: bold; }
     
-    with st.form("nexus_form"):
-        t_in = st.text_input("Ticker (VULC3, BTC, JEPQ34):").upper().strip()
-        p_compra = st.number_input("Preço que Paguei:", min_value=0.0)
-        qtd = st.number_input("Quantidade que tenho:", min_value=0)
-        if st.form_submit_button("🚀 Analisar Ativo"):
-            st.session_state.consulta = t_in
+    /* Cards de Métricas com Borda Neon */
+    .stMetric { background-color: #0a0a0a !important; border: 1px solid #00d4ff !important; border-radius: 8px; padding: 10px; }
+    [data-testid="stMetricValue"] { color: #ffffff !important; font-size: 1.8rem !important; }
+    
+    /* Caixas do Mentor (Onde Comprar/Vender) */
+    .mentor-box { background-color: #0e1117; border-left: 6px solid #00d4ff; padding: 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333; }
+    
+    /* Forçar Gráfico a aparecer no PC com altura correta */
+    iframe { min-height: 500px !important; width: 100% !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- PAINEL PRINCIPAL ---
-if 'consulta' in st.session_state and st.session_state.consulta:
-    d = analisar_ativo(st.session_state.consulta)
-    if d:
-        st.markdown(f"<h1>Análise de Inteligência: <span style='color:#007bff'>{
+# 2. COMANDO LATERAL (Aba Lateral que tinha sumido)
+with st.sidebar:
+    st.markdown("<h2 class='neon-blue'>🛡️ Nexus Mentor</h2>", unsafe_allow_html=True)
+    ticker_input = st.text_input("Ativo (Ex: BTC-USD ou VULC3):", value="BTC-USD").upper()
+    
+    st.divider()
+    st.markdown("<h4 class='neon-blue'>💰 Dados da Carteira</h4>", unsafe_allow_html=True)
+    val_investido = st.number_input("Valor total investido (R$):", value=0.0)
+    preco_pago = st.number_input("Preço que paguei:", value=0.0, format="%.2f")
+    
+    if st.sidebar.button("🚀 Sincronizar Tudo"):
+        st.rerun()
+
+# 3. MOTOR DE EXIBIÇÃO
+ticker_f = ticker_input + ".SA" if len(ticker_input) < 6 and "." not in ticker_input else ticker_input
+
+try:
+    data = yf.download(ticker_f, period="60d", interval="1d", progress=False)
+    
+    if not data.empty:
+        p_atual = float(data['Close'].iloc[-1])
+        st.markdown(f"<h1>📊 Mentor Nexus: <span class='neon-blue'>{ticker_input}</span></h1>", unsafe_allow_html=True)
+
+        # Painel de Lucro e Cotação
+        c1, c2 = st.columns(2)
+        lucro_r = (p_atual - preco_pago) * (val_investido / preco_pago) if preco_pago > 0 else 0
+        porc = ((p_atual / preco_pago) - 1) * 100 if preco_pago > 0 else 0
+        
+        c1.metric("Cotação de Hoje", f"R$ {p_atual:,.2f}")
+        c2.metric("Meu Lucro/Perda", f"R$ {lucro_r:,.2f}", delta=f"{porc:.2f}%")
+
+        # ORIENTAÇÃO DO MENTOR (Onde Comprar/Vender)
+        st.divider()
+        st.markdown("<h3 class='neon-blue'>💡 O que o robô recomenda agora?</h3>", unsafe_allow_html=True)
+        
+        topo_10 = float(data['High'].tail(10).max())
+        fundo_10 = float(data['Low'].tail(10).min())
+        
+        col_compra, col_venda = st.columns(2)
+        with col_compra:
+            st.markdown(f"<div class='mentor-box'><h4>🛒 Onde Comprar:</h4><p>Preço seguro perto de <b class='neon-blue'>R$ {fundo_10:.2f}</b>.</p></div>", unsafe_allow_html=True)
+        
+        with col_venda:
+            st.markdown(f"<div class='mentor-box'><h4>💰 Onde Vender:</h4><p>Considere lucrar em <b class='neon-blue'>R$ {topo_10:.2f}</b>.</p></div>", unsafe_allow_html=True)
+
+        # GRÁFICO MASTER
+        fig = go.Figure(data=[go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
+        fig.update_layout(template="plotly_dark", height=500, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
+        st.plotly_chart(fig, use_container_width=True)
+
+except Exception:
+    st.error("Aguardando ticker válido para carregar o layout...")
