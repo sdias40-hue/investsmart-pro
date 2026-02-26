@@ -3,35 +3,38 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 
-# 1. FORÇAR LAYOUT ESCURO (Correção de Contraste Sandro)
+# 1. FORÇAR LAYOUT ESCURO E SETA VISÍVEL
 st.set_page_config(page_title="Nexus Mentor | Sandro", layout="wide")
 
 st.markdown("""
     <style>
-    /* Forçar Fundo Preto em tudo para as letras brancas aparecerem */
+    /* Forçar Fundo Preto Absoluto */
     .stApp, .main, header, .stSidebar, [data-testid="stHeader"] { 
         background-color: #000000 !important; 
     }
     
-    /* Forçar Letras Brancas em tudo */
+    /* Forçar Letras Brancas */
     h1, h2, h3, h4, p, span, label, div, .stMarkdown { 
         color: #ffffff !important; 
         font-family: 'Segoe UI', sans-serif !important; 
     }
     
-    /* Cor destaque Neon Blue */
+    /* AJUSTE CRÍTICO: Tornar a seta do menu visível no celular */
+    [data-testid="collapsedControl"] {
+        background-color: #00d4ff !important;
+        color: #000000 !important;
+        border-radius: 0 5px 5px 0;
+        left: 0 !important;
+        display: flex !important;
+    }
+    
     .neon-blue { color: #00d4ff !important; font-weight: bold; }
     
-    /* Cards de Métricas com Borda */
+    /* Cards de Métricas */
     .stMetric { 
         background-color: #0a0a0a !important; 
         border: 1px solid #00d4ff !important; 
         border-radius: 8px; 
-    }
-    
-    /* AJUSTE CRÍTICO: Seta do menu lateral branca para fundo preto */
-    button[kind="header"] {
-        color: #ffffff !important;
     }
     
     /* Caixas do Mentor */
@@ -45,7 +48,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. MENU LATERAL (Gerenciamento de Ativos)
+# 2. MENU LATERAL (Aba de Comandos)
 with st.sidebar:
     st.markdown("<h2 class='neon-blue'>🛡️ Nexus Mentor</h2>", unsafe_allow_html=True)
     ticker_input = st.text_input("Ativo (Ex: BTC-USD ou VULC3):", value="BTC-USD").upper()
