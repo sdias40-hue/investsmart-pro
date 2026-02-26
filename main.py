@@ -3,52 +3,41 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 
-# 1. VISIBILIDADE E QUALIDADE (PC E CELULAR)
-st.set_page_config(page_title="Nexus Global | Sandro", layout="wide")
+# 1. ESTÉTICA PREMIUM (O RETORNO DO LAYOUT MASTER)
+st.set_page_config(page_title="Nexus Global Intelligence | Sandro", layout="wide")
 
 st.markdown("""
     <style>
-    .main { background-color: #000000 !important; }
-    h1, h2, h3, h4, p, span, label, div { 
-        color: #ffffff !important; 
-        font-family: 'Segoe UI', sans-serif !important;
+    .main { background-color: #050505 !important; }
+    h1, h2, h3, h4, span, label, p { 
+        color: #00FF41 !important; 
+        font-family: 'Courier New', monospace !important; 
     }
-    .neon-blue { color: #00d4ff !important; font-weight: bold; }
-    
-    /* Grid de Qualidade para o Radar Global */
-    .radar-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        justify-content: space-between;
-    }
-    
-    /* Card Profissional (Não estica e não perde qualidade) */
+    /* Cards de Alta Qualidade (Visual Glass) */
     .stMetric { 
-        background-color: #0a0a0a !important; 
-        border: 1px solid #333 !important; 
+        background-color: rgba(0, 255, 65, 0.05) !important; 
+        border: 1px solid #00FF41 !important; 
         border-radius: 12px; 
-        padding: 15px;
-        min-width: 200px;
+        padding: 20px;
     }
-    [data-testid="stMetricValue"] { font-size: 1.6rem !important; color: #ffffff !important; }
+    [data-testid="stMetricValue"] { color: #ffffff !important; font-size: 2rem !important; }
     
-    /* Caixa de Veredito Master */
+    /* Veredito Master Blindado */
     .status-box { 
-        background-color: #0e1117; 
-        border-left: 8px solid #00d4ff; 
-        padding: 20px; 
-        border-radius: 10px; 
-        margin: 15px 0;
-        border: 1px solid #222;
+        background-color: #000000; 
+        border: 2px solid #00FF41; 
+        border-left: 12px solid #00FF41; 
+        padding: 25px; 
+        border-radius: 15px;
+        box-shadow: 0px 0px 15px rgba(0, 255, 65, 0.2);
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. RADAR GLOBAL: BOLSAS DO MUNDO (ORGANIZAÇÃO EM GRADE)
-st.markdown("<h3 class='neon-blue'>🌍 Radar das Bolsas Mundiais</h3>", unsafe_allow_html=True)
+# 2. RADAR GLOBAL: BOLSAS DO MUNDO (TOP VIEW)
+st.markdown("<h3 style='text-align: center;'>🌍 RADAR DE INTELIGÊNCIA GLOBAL</h3>", unsafe_allow_html=True)
 indices = {"S&P 500 (EUA)": "^GSPC", "Nasdaq (Tech)": "^IXIC", "Ibovespa (BR)": "^BVSP"}
-c_top = st.columns(3)
+c_idx = st.columns(3)
 
 for i, (nome, ticket) in enumerate(indices.items()):
     try:
@@ -56,47 +45,45 @@ for i, (nome, ticket) in enumerate(indices.items()):
         if len(idx_data) > 1:
             v_at = idx_data['Close'].iloc[-1]
             var = ((v_at / idx_data['Close'].iloc[-2]) - 1) * 100
-            c_top[i].metric(nome, f"{v_at:,.0f}", f"{var:.2f}%")
+            c_idx[i].metric(nome, f"{v_at:,.0f}", f"{var:.2f}%")
     except: pass
 
-# 3. GESTÃO E COMANDO LATERAL
+# 3. COMANDO LATERAL
 with st.sidebar:
-    st.markdown("<h2 class='neon-blue'>🛡️ Nexus Global</h2>", unsafe_allow_html=True)
-    t_in = st.text_input("Ativo (Ex: BTC-USD, VULC3):", value="BTC-USD").upper()
-    val_inv = st.number_input("Valor Investido (R$):", value=0.0)
-    p_pago = st.number_input("Preço de Entrada (R$):", value=0.0, format="%.2f")
-    st.sidebar.button("🚀 Sincronizar Nexus")
+    st.markdown("<h2>🛡️ Nexus System</h2>", unsafe_allow_html=True)
+    t_in = st.text_input("Ativo Principal:", value="TSLA").upper()
+    val_inv = st.number_input("Capital Alocado (R$):", value=0.0)
+    p_pago = st.number_input("Preço Médio (R$):", value=0.0)
+    st.sidebar.button("🚀 Sincronizar")
 
-# 4. MOTOR DE INTELIGÊNCIA 24H
+# 4. MOTOR DE ANÁLISE MASTER
 t_f = t_in + ".SA" if "-" not in t_in and "." not in t_in and len(t_in) < 6 else t_in
 
 try:
     data = yf.download(t_f, period="60d", interval="1d", progress=False)
     if not data.empty:
         p_at = float(data['Close'].iloc[-1])
-        st.markdown(f"<h1>📊 Mentor Nexus: <span class='neon-blue'>{t_in}</span></h1>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center;'>🌍 {t_in} INTELLIGENCE REPORT</h1>", unsafe_allow_html=True)
 
-        # Performance do Ativo
         c1, c2 = st.columns(2)
         lucro = (p_at - p_pago) * (val_inv / p_pago) if p_pago > 0 else 0
-        c1.metric("Preço Hoje", f"R$ {p_at:,.2f}")
-        c2.metric("Meu Resultado", f"R$ {lucro:,.2f}", delta=f"{((p_at/p_pago)-1)*100:.2f}%" if p_pago > 0 else "0%")
+        c1.metric("Cotação Atual", f"R$ {p_at:,.2f}")
+        c2.metric("Performance", f"R$ {lucro:,.2f}", delta=f"{((p_at/p_pago)-1)*100:.2f}%" if p_pago > 0 else "0%")
 
-        # VEREDITO MASTER DO ROBÔ
+        # VEREDITO PREMIUM
         st.divider()
-        st.markdown("<h3 class='neon-blue'>🤖 Veredito do Robô Nexus</h3>", unsafe_allow_html=True)
         tende = "ALTA" if p_at > data['Close'].mean() else "QUEDA"
-        cor = "#00ff00" if tende == "ALTA" else "#ff4b4b"
-        
+        cor = "#00FF41" if tende == "ALTA" else "#FF3131"
         st.markdown(f"""
-            <div class='status-box' style='border-left-color: {cor};'>
-                <h4 style='color: {cor} !important;'>📢 RECOMENDAÇÃO: {tende}</h4>
-                <p>O ativo apresenta suporte em R$ {data['Low'].tail(10).min():.2f}. Acompanhe a volatilidade da Nasdaq no radar acima para confirmar a entrada.</p>
+            <div class='status-box'>
+                <h3 style='color: {cor} !important;'>📢 VEREDITO DO ROBÔ: {tende}</h3>
+                <p style='color: #ffffff !important;'>Suporte detectado em R$ {data['Low'].tail(10).min():.2f}.</p>
+                <p style='color: #ffffff !important;'>Tendência Global: O S&P 500 está influenciando o fluxo de capital para {t_in}.</p>
             </div>
         """, unsafe_allow_html=True)
 
-        # GRÁFICO MASTER (ALTA DEFINIÇÃO)
+        # GRÁFICO EM ALTA DEFINIÇÃO
                 fig = go.Figure(data=[go.Candlestick(x=data.index, open=data.Open, high=data.High, low=data.Low, close=data.Close)])
-        fig.update_layout(template="plotly_dark", height=500, margin=dict(l=10,r=10,t=10,b=10), xaxis_rangeslider_visible=False)
+        fig.update_layout(template="plotly_dark", height=500, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False)
         st.plotly_chart(fig, use_container_width=True)
-except: st.error("Sincronizando com os mercados globais...")
+except: st.error("Sincronizando com os mercados mundiais...")
