@@ -3,42 +3,62 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 
-# 1. VISUAL NEXUS MENTOR (Ponto de Restauração Validado)
+# 1. FORÇAR LAYOUT ESCURO (Resolve o problema do fundo branco)
 st.set_page_config(page_title="Nexus Mentor | Sandro", layout="wide")
 
 st.markdown("""
     <style>
-    /* Fundo Preto Absoluto e Fontes Brancas Master */
-    .main { background-color: #000000; color: #ffffff !important; }
-    h1, h2, h3, h4, p, span, label, div { color: #ffffff !important; font-family: 'Segoe UI', sans-serif; }
+    /* Forçar Fundo Preto em tudo */
+    .stApp, .main, header, .stSidebar { 
+        background-color: #000000 !important; 
+    }
+    
+    /* Forçar Letras Brancas em tudo */
+    h1, h2, h3, h4, p, span, label, div, .stMarkdown { 
+        color: #ffffff !important; 
+        font-family: 'Segoe UI', sans-serif !important; 
+    }
+    
+    /* Cor destaque Neon */
     .neon-blue { color: #00d4ff !important; font-weight: bold; }
     
-    /* Cards de Métricas com Borda Neon */
-    .stMetric { background-color: #0a0a0a !important; border: 1px solid #00d4ff !important; border-radius: 8px; padding: 10px; }
-    [data-testid="stMetricValue"] { color: #ffffff !important; font-size: 1.8rem !important; }
+    /* Cards de Métricas */
+    .stMetric { 
+        background-color: #0a0a0a !important; 
+        border: 1px solid #00d4ff !important; 
+        border-radius: 8px; 
+    }
     
-    /* Caixas do Mentor (Onde Comprar/Vender) */
-    .mentor-box { background-color: #0e1117; border-left: 6px solid #00d4ff; padding: 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333; }
+    /* Ajuste para a seta do menu lateral aparecer no celular */
+    [data-testid="collapsedControl"] {
+        color: #ffffff !important;
+    }
     
-    /* Forçar Gráfico a aparecer no PC com altura correta */
-    iframe { min-height: 500px !important; width: 100% !important; }
+    /* Caixas de Compra/Venda */
+    .mentor-box { 
+        background-color: #0e1117; 
+        border-left: 6px solid #00d4ff; 
+        padding: 20px; 
+        border-radius: 8px; 
+        border: 1px solid #333; 
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. COMANDO LATERAL (Aba Lateral que tinha sumido)
+# 2. MENU LATERAL (Aba de comandos)
 with st.sidebar:
     st.markdown("<h2 class='neon-blue'>🛡️ Nexus Mentor</h2>", unsafe_allow_html=True)
     ticker_input = st.text_input("Ativo (Ex: BTC-USD ou VULC3):", value="BTC-USD").upper()
     
     st.divider()
-    st.markdown("<h4 class='neon-blue'>💰 Dados da Carteira</h4>", unsafe_allow_html=True)
-    val_investido = st.number_input("Valor total investido (R$):", value=0.0)
-    preco_pago = st.number_input("Preço que paguei:", value=0.0, format="%.2f")
+    st.markdown("<h4 class='neon-blue'>💰 Carteira</h4>", unsafe_allow_html=True)
+    val_investido = st.number_input("Valor investido (R$):", value=0.0)
+    preco_pago = st.number_input("Preço pago:", value=0.0, format="%.2f")
     
     if st.sidebar.button("🚀 Sincronizar Tudo"):
         st.rerun()
 
-# 3. MOTOR DE EXIBIÇÃO
+# 3. EXIBIÇÃO DO DASHBOARD
 ticker_f = ticker_input + ".SA" if len(ticker_input) < 6 and "." not in ticker_input else ticker_input
 
 try:
@@ -48,32 +68,27 @@ try:
         p_atual = float(data['Close'].iloc[-1])
         st.markdown(f"<h1>📊 Mentor Nexus: <span class='neon-blue'>{ticker_input}</span></h1>", unsafe_allow_html=True)
 
-        # Painel de Lucro e Cotação
+        # Cotação e Lucro
         c1, c2 = st.columns(2)
         lucro_r = (p_atual - preco_pago) * (val_investido / preco_pago) if preco_pago > 0 else 0
-        porc = ((p_atual / preco_pago) - 1) * 100 if preco_pago > 0 else 0
-        
-        c1.metric("Cotação de Hoje", f"R$ {p_atual:,.2f}")
-        c2.metric("Meu Lucro/Perda", f"R$ {lucro_r:,.2f}", delta=f"{porc:.2f}%")
+        c1.metric("Preço Hoje", f"R$ {p_atual:,.2f}")
+        c2.metric("Meu Lucro", f"R$ {lucro_r:,.2f}", delta=f"{((p_atual/preco_pago)-1)*100 if preco_pago > 0 else 0:.2f}%")
 
-        # ORIENTAÇÃO DO MENTOR (Onde Comprar/Vender)
+        # Recomendações
         st.divider()
-        st.markdown("<h3 class='neon-blue'>💡 O que o robô recomenda agora?</h3>", unsafe_allow_html=True)
-        
         topo_10 = float(data['High'].tail(10).max())
         fundo_10 = float(data['Low'].tail(10).min())
         
-        col_compra, col_venda = st.columns(2)
-        with col_compra:
-            st.markdown(f"<div class='mentor-box'><h4>🛒 Onde Comprar:</h4><p>Preço seguro perto de <b class='neon-blue'>R$ {fundo_10:.2f}</b>.</p></div>", unsafe_allow_html=True)
-        
-        with col_venda:
-            st.markdown(f"<div class='mentor-box'><h4>💰 Onde Vender:</h4><p>Considere lucrar em <b class='neon-blue'>R$ {topo_10:.2f}</b>.</p></div>", unsafe_allow_html=True)
+        col_c, col_v = st.columns(2)
+        with col_c:
+            st.markdown(f"<div class='mentor-box'><h4>🛒 Comprar em:</h4><p class='neon-blue'>R$ {fundo_10:.2f}</p></div>", unsafe_allow_html=True)
+        with col_v:
+            st.markdown(f"<div class='mentor-box'><h4>💰 Vender em:</h4><p class='neon-blue'>R$ {topo_10:.2f}</p></div>", unsafe_allow_html=True)
 
-        # GRÁFICO MASTER
+        # Gráfico
         fig = go.Figure(data=[go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
-        fig.update_layout(template="plotly_dark", height=500, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
+        fig.update_layout(template="plotly_dark", height=500, paper_bgcolor='black', plot_bgcolor='black')
         st.plotly_chart(fig, use_container_width=True)
 
-except Exception:
-    st.error("Aguardando ticker válido para carregar o layout...")
+except:
+    st.error("Aguardando ticker...")
