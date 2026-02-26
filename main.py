@@ -1,39 +1,41 @@
 st.markdown("""
     <style>
-    /* Fundo Preto Absoluto Blindado */
+    /* 1. Fundo Preto Absoluto Blindado */
     .stApp, .main, header, .stSidebar, [data-testid="stHeader"] { 
         background-color: #000000 !important; 
     }
     
-    /* Fontes Brancas e Segoe UI para nitidez */
+    /* 2. Fontes Brancas Master */
     h1, h2, h3, h4, p, span, label, div, .stMarkdown { 
         color: #ffffff !important; 
         font-family: 'Segoe UI', sans-serif !important; 
     }
     
-    /* AJUSTE DA SETA: Pequena, azul e discreta no celular */
+    /* 3. AJUSTE DA SETA: Minimalista e Profissional */
     [data-testid="collapsedControl"] {
         background-color: #00d4ff !important;
-        border-radius: 0 10px 10px 0;
-        width: 35px !important;
-        height: 35px !important;
-        top: 10px !important;
+        border-radius: 0 12px 12px 0;
+        width: 40px !important;
+        height: 40px !important;
+        top: 15px !important;
+        left: 0 !important;
     }
-    /* Substitui o texto 'keyboard...' por uma seta real */
+    /* Substitui o texto 'keyboard_double' por uma seta real */
     [data-testid="collapsedControl"]::before {
         content: "〉" !important;
         color: #000000 !important;
+        font-size: 20px !important;
         font-weight: bold;
-        padding-left: 10px;
+        position: absolute;
+        left: 12px;
+        top: 6px;
     }
-    /* Esconde o texto grande do sistema */
+    /* Esconde o código de texto do sistema */
     [data-testid="collapsedControl"] span {
         display: none !important;
     }
 
     .neon-blue { color: #00d4ff !important; font-weight: bold; }
-    
-    /* Cards de Métricas e Mentor */
     .stMetric { background-color: #0a0a0a !important; border: 1px solid #00d4ff !important; border-radius: 8px; }
     .mentor-box { background-color: #0e1117; border-left: 6px solid #00d4ff; padding: 20px; border-radius: 8px; border: 1px solid #333; }
     </style>
