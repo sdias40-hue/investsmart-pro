@@ -1,31 +1,51 @@
-# --- GRÁFICO MASTER (AJUSTE DE VISIBILIDADE PC/CELULAR) ---
-st.markdown("<h4 class='neon-blue'>📈 Histórico de Preços</h4>", unsafe_allow_html=True)
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+import plotly.graph_objects as go
 
-fig = go.Figure(data=[go.Candlestick(
-    x=data.index,
-    open=data['Open'],
-    high=data['High'],
-    low=data['Low'],
-    close=data['Close'],
-    name="Preços"
-)])
+# 1. Configuração Master (Garantia de Visibilidade)
+st.set_page_config(page_title="Nexus Mentor | Sandro", layout="wide")
 
-# Linha de tendência Azul Neon estável
-fig.add_trace(go.Scatter(
-    x=data.index, 
-    y=data['Close'].rolling(7).mean(), 
-    name="Tendência", 
-    line=dict(color='#00d4ff', width=2)
-))
+st.markdown("""
+    <style>
+    .main { background-color: #000000; color: #ffffff !important; }
+    h1, h2, h3, h4, p, span, label, div { color: #ffffff !important; font-family: 'Segoe UI', sans-serif; }
+    .neon-blue { color: #00d4ff !important; font-weight: bold; }
+    .stMetric { background-color: #0a0a0a !important; border: 1px solid #00d4ff !important; border-radius: 8px; padding: 10px; }
+    [data-testid="stMetricValue"] { color: #ffffff !important; font-size: 1.8rem !important; }
+    .mentor-box { background-color: #0e1117; border-left: 6px solid #00d4ff; padding: 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# Layout forçado para visibilidade no monitor do PC
-fig.update_layout(
-    template="plotly_dark", 
-    height=550, 
-    margin=dict(l=5, r=5, t=10, b=10), 
-    xaxis_rangeslider_visible=False,
-    paper_bgcolor='rgba(0,0,0,0)',
-    plot_bgcolor='rgba(0,0,0,0)'
-)
+# 2. Comando Lateral
+with st.sidebar:
+    st.markdown("<h2 class='neon-blue'>🛡️ Nexus Mentor</h2>", unsafe_allow_html=True)
+    ticker_input = st.text_input("Ativo (Ex: BTC-USD ou VULC3):", value="BTC-USD").upper()
+    val_investido = st.number_input("Valor total investido (R$):", value=0.0)
+    preco_pago = st.number_input("Preço Médio (R$):", value=0.0, format="%.2f")
+    if st.sidebar.button("🚀 Sincronizar Tudo"):
+        st.rerun()
 
-st.plotly_chart(fig, use_container_width=True)
+# 3. Motor de Busca e Gráfico
+ticker_f = ticker_input + ".SA" if len(ticker_input) < 6 and "." not in ticker_input else ticker_input
+
+try:
+    data = yf.download(ticker_f, period="60d", interval="1d", progress=False)
+    if not data.empty:
+        p_atual = float(data['Close'].iloc[-1])
+        st.markdown(f"<h1>📊 Mentor Nexus: <span class='neon-blue'>{ticker_input}</span></h1>", unsafe_allow_html=True)
+
+        # Performance
+        c1, c2 = st.columns(2)
+        lucro_r = (p_atual - preco_pago) * (val_investido / preco_pago) if preco_pago > 0 else 0
+        c1.metric("Cotação de Hoje", f"R$ {p_atual:,.2f}")
+        c2.metric("Meu Lucro/Perda", f"R$ {lucro_r:,.2f}", delta=f"{((p_atual/preco_pago)-1)*100 if preco_pago > 0 else 0:.2f}%")
+
+        # --- AJUSTE DO GRÁFICO (FOCO DE AGORA) ---
+        st.markdown("<h4 class='neon-blue'>📈 Histórico de Preços</h4>", unsafe_allow_html=True)
+        fig = go.Figure(data=[go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
+        fig.add_trace(go.Scatter(x=data.index, y=data['Close'].rolling(7).mean(), name="Tendência", line=dict(color='#00d4ff', width=2)))
+        fig.update_layout(template="plotly_dark", height=550, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
+        st.plotly_chart(fig, use_container_width=True)
+
+except Exception: st.error("Sincronizando...")
