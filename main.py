@@ -1,17 +1,24 @@
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+import plotly.graph_objects as go
+
+# 1. Configuração de Visibilidade (PC e Celular)
+st.set_page_config(page_title="Nexus Mentor | Sandro", layout="wide")
+
 st.markdown("""
     <style>
-    /* 1. Fundo Preto Absoluto Blindado */
+    /* Forçar Fundo Preto e Letras Brancas Master */
     .stApp, .main, header, .stSidebar, [data-testid="stHeader"] { 
         background-color: #000000 !important; 
     }
-    
-    /* 2. Fontes Brancas Master */
-    h1, h2, h3, h4, p, span, label, div, .stMarkdown { 
+    h1, h2, h3, h4, p, span, label, div { 
         color: #ffffff !important; 
         font-family: 'Segoe UI', sans-serif !important; 
     }
-    
-    /* 3. AJUSTE DA SETA: Minimalista e Profissional */
+    .neon-blue { color: #00d4ff !important; font-weight: bold; }
+
+    /* AJUSTE DO MENU LATERAL: Aba azul discreta no celular */
     [data-testid="collapsedControl"] {
         background-color: #00d4ff !important;
         border-radius: 0 12px 12px 0;
@@ -20,7 +27,7 @@ st.markdown("""
         top: 15px !important;
         left: 0 !important;
     }
-    /* Substitui o texto 'keyboard_double' por uma seta real */
+    /* Seta minimalista no lugar do texto 'keyboard_double' */
     [data-testid="collapsedControl"]::before {
         content: "〉" !important;
         color: #000000 !important;
@@ -30,13 +37,40 @@ st.markdown("""
         left: 12px;
         top: 6px;
     }
-    /* Esconde o código de texto do sistema */
-    [data-testid="collapsedControl"] span {
-        display: none !important;
-    }
+    [data-testid="collapsedControl"] span { display: none !important; }
 
-    .neon-blue { color: #00d4ff !important; font-weight: bold; }
+    /* Cards e Caixas do Mentor */
     .stMetric { background-color: #0a0a0a !important; border: 1px solid #00d4ff !important; border-radius: 8px; }
     .mentor-box { background-color: #0e1117; border-left: 6px solid #00d4ff; padding: 20px; border-radius: 8px; border: 1px solid #333; }
     </style>
     """, unsafe_allow_html=True)
+
+# 2. Comando Lateral: Aba de Ações
+with st.sidebar:
+    st.markdown("<h2 class='neon-blue'>🛡️ Nexus Mentor</h2>", unsafe_allow_html=True)
+    ticker_input = st.text_input("Ativo (Ex: BTC-USD ou VULC3):", value="BTC-USD").upper()
+    
+    st.divider()
+    st.markdown("<h4 class='neon-blue'>💰 Dados da Carteira</h4>", unsafe_allow_html=True)
+    val_investido = st.number_input("Valor total investido (R$):", value=0.0)
+    preco_pago = st.number_input("Preço que paguei:", value=0.0, format="%.2f")
+    
+    if st.sidebar.button("🚀 Sincronizar Tudo"):
+        st.rerun()
+
+# 3. Motor de Busca e Exibição
+ticker_f = ticker_input + ".SA" if len(ticker_input) < 6 and "." not in ticker_input else ticker_input
+
+try:
+    data = yf.download(ticker_f, period="60d", interval="1d", progress=False)
+    if not data.empty:
+        p_atual = float(data['Close'].iloc[-1])
+        st.markdown(f"<h1>📊 Mentor Nexus: <span class='neon-blue'>{ticker_input}</span></h1>", unsafe_allow_html=True)
+
+        c1, c2 = st.columns(2)
+        lucro_r = (p_atual - preco_pago) * (val_investido / preco_pago) if preco_pago > 0 else 0
+        c1.metric("Preço Hoje", f"R$ {p_atual:,.2f}")
+        c2.metric("Meu Lucro", f"R$ {lucro_r:,.2f}", delta=f"{((p_atual/preco_pago)-1)*100 if preco_pago > 0 else 0:.2f}%")
+
+        st.divider()
+        topo_10 = float(data['High'].tail
