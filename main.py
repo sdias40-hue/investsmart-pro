@@ -4,19 +4,19 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 
-# --- CONFIGURAÇÕES DO TELEGRAM ---
-TOKEN_TELEGRAM = "SEU_TOKEN_AQUI" 
+# --- CONFIGURAÇÕES FINAIS (Sandro & Copilot) ---
+# Token extraído da imagem do BotFather e Chat ID do userinfobot
+TOKEN_TELEGRAM = "8504286079:AAGJnSSNuKVK6K2WGc68gvAcx_Bxg0hE32o"
 CHAT_ID_TELEGRAM = "8392660003"
 
 def enviar_alerta_telegram(mensagem):
-    if "SEU_TOKEN" in TOKEN_TELEGRAM:
-        return 
     url = f"https://api.telegram.org/bot{TOKEN_TELEGRAM}/sendMessage"
     payload = {"chat_id": CHAT_ID_TELEGRAM, "text": mensagem, "parse_mode": "Markdown"}
     try:
-        requests.post(url, json=payload, timeout=10)
+        r = requests.post(url, json=payload, timeout=10)
+        return r.status_code == 200
     except Exception:
-        pass
+        return False
 
 # 1. Configuração de Visibilidade
 st.set_page_config(page_title="Nexus Mentor | Sandro", layout="wide")
@@ -34,34 +34,36 @@ st.markdown("""
 # 2. Comando Lateral
 with st.sidebar:
     st.markdown("<h2 class='neon-blue'>🛡️ Nexus Mentor</h2>", unsafe_allow_html=True)
+    raw_input = st.text_input("Ativo (Ex: BTC-USD ou VULC3):", value="DUOL34").upper().strip()
     
-    # LIMPEZA TOTAL: Remove espaços, pontos e textos extras como "S.A"
-    raw_input = st.text_input("Ativo (Ex: BTC-USD ou VULC3):", value="BTC-USD").upper()
+    # Limpeza para evitar erros de digitação (remove espaços e S.A)
     ticker_clean = raw_input.replace(" ", "").replace("S.A", "").replace("SA", "").strip()
     
     st.divider()
-    val_investido = st.number_input("Valor total investido (R$):", value=0.0)
-    preco_pago = st.number_input("Preço que paguei (Unidade):", value=0.0)
-    ativar_alertas = st.checkbox("Ativar Alertas no Telegram", value=True)
+    val_investido = st.number_input("Valor total investido (R$):", value=10000.0)
+    preco_pago = st.number_input("Preço que paguei (Unidade):", value=40.30)
     
-    if st.sidebar.button("🚀 Sincronizar Tudo"):
-        st.rerun()
+    st.divider()
+    if st.button("🔔 Testar Conexão Telegram"):
+        if enviar_alerta_telegram("🚀 *Nexus Mentor Online:* Sandro, a conexão com o bot foi estabelecida com sucesso!"):
+            st.success("Mensagem enviada! Verifique seu Telegram.")
+        else:
+            st.error("Erro no envio. Verifique o Token.")
 
-# 3. Formatação do Ticker (Lógica B3 vs Internacional)
+# 3. Formatação do Ticker
 ticker_f = ticker_clean if "-" in ticker_clean or "." in ticker_clean else f"{ticker_clean}.SA"
 
-# 4. Busca de Dados
+# 4. Motor de Busca e Exibição
 try:
-    # Adicionamos auto_adjust para evitar erros de formatação
+    # Coleta de dados com ajuste automático
     data = yf.download(ticker_f, period="60d", interval="1d", progress=False, auto_adjust=True)
     
-    # Corrige o problema de colunas duplas que vimos na imagem anterior
+    # Corrige formatação de colunas se necessário
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = data.columns.get_level_values(0)
 
-    if not data.empty and len(data) > 0:
+    if not data.empty:
         p_atual = float(data['Close'].iloc[-1])
-        
         st.markdown(f"<h1>📊 Mentor Nexus: <span class='neon-blue'>{ticker_clean}</span></h1>", unsafe_allow_html=True)
 
         c1, c2 = st.columns(2)
@@ -69,9 +71,9 @@ try:
         variacao = ((p_atual / preco_pago) - 1) * 100 if preco_pago > 0 else 0
         
         c1.metric("Preço Atual", f"R$ {p_atual:,.2f}")
-        c2.metric("Resultado", f"R$ {lucro_r:,.2f}", delta=f"{variacao:.2f}%")
+        c2.metric("Resultado Estimado", f"R$ {lucro_r:,.2f}", delta=f"{variacao:.2f}%")
 
-        # Cálculo de Suporte e Resistência (10 dias)
+        # Suportes e Resistências
         topo_10 = float(data['High'].tail(10).max())
         fundo_10 = float(data['Low'].tail(10).min())
         
@@ -80,19 +82,19 @@ try:
         col1.markdown(f"<div class='mentor-box'><h4>🛒 Suporte (10d):</h4><p class='neon-blue'>R$ {fundo_10:.2f}</p></div>", unsafe_allow_html=True)
         col2.markdown(f"<div class='mentor-box'><h4>💰 Resistência (10d):</h4><p class='neon-blue'>R$ {topo_10:.2f}</p></div>", unsafe_allow_html=True)
 
-        if ativar_alertas:
-            if p_atual <= fundo_10:
-                enviar_alerta_telegram(f"🔔 *COMPRA:* {ticker_clean} em R$ {p_atual:.2f}")
-            elif p_atual >= topo_10:
-                enviar_alerta_telegram(f"🚀 *VENDA:* {ticker_clean} em R$ {p_atual:.2f}")
+        # Disparo Automático de Alertas
+        if p_atual <= fundo_10:
+            enviar_alerta_telegram(f"🔔 *OPORTUNIDADE EM {ticker_clean}*: Preço atingiu suporte de R$ {p_atual:.2f}!")
+        elif p_atual >= topo_10:
+            enviar_alerta_telegram(f"🚀 *ALERTA DE VENDA EM {ticker_clean}*: Preço atingiu topo de R$ {p_atual:.2f}!")
 
         # Gráfico Master
         fig = go.Figure(data=[go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
-        fig.update_layout(template="plotly_dark", height=400, paper_bgcolor='black', plot_bgcolor='black', xaxis_rangeslider_visible=False)
+        fig.update_layout(template="plotly_dark", height=450, paper_bgcolor='black', plot_bgcolor='black', xaxis_rangeslider_visible=False)
         st.plotly_chart(fig, use_container_width=True)
 
     else:
-        st.error(f"O Yahoo Finance bloqueou a requisição ou o ativo '{ticker_f}' é inválido. Aguarde 2 minutos.")
+        st.error("Aguardando resposta do servidor do Yahoo Finance...")
 
 except Exception as e:
-    st.error(f"Erro inesperado: {e}")
+    st.error(f"Erro técnico: {e}")
